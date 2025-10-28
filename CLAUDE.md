@@ -1,18 +1,33 @@
-# faf-taf-action
+# faf-taf-git
 
-**GitHub Action for Automatic .taf Updates**
+**Platform-Agnostic TAF Updater - Works in ANY CI/CD**
 
 ## Project Overview
 
-**Type:** GitHub Action
+**Type:** Standalone CLI + GitHub Action + Future Wrappers
 **Version:** 1.0.0
-**Stack:** TypeScript, GitHub Actions SDK
+**Stack:** TypeScript (platform-agnostic core)
 **License:** MIT (FREE FOREVER)
-**Status:** Development (methodically built, ready for testing)
+**Status:** Ready for launch (refactored for universal use)
 
 ## What is This?
 
-GitHub Action that automatically updates `.taf` (Testing Activity Feed) files with test results from CI/CD pipelines.
+**Platform-agnostic CLI tool** that automatically updates `.taf` (Testing Activity Feed) files with test results from ANY CI/CD pipeline.
+
+**Core + Wrappers Architecture:**
+```
+faf-taf-git (CORE)
+├── Platform-agnostic TAF operations
+├── Works standalone: npx faf-taf-git
+├── Pure functions, no CI dependencies
+└── Published to npm
+
+Wrappers (consume faf-taf-git):
+├── GitHub Action (built-in thin wrapper)
+├── GitLab CI component (future)
+├── Bitbucket Pipelines (future)
+└── Jenkins plugin (future)
+```
 
 Part of the **Golden Triangle**:
 ```
@@ -54,18 +69,21 @@ Part of the **Golden Triangle**:
 ### File Structure
 
 ```
-faf-taf-action/
-├── action.yml              # Action definition
-├── package.json            # Dependencies
+faf-taf-git/
+├── action.yml              # GitHub Action definition (thin wrapper)
+├── package.json            # Dependencies + bin entry
 ├── tsconfig.json           # TypeScript config (strict mode)
 ├── src/
-│   ├── index.ts           # Main entry point
+│   ├── cli.ts             # Platform-agnostic CLI core ⭐
+│   ├── index.ts           # GitHub Action wrapper (thin)
 │   ├── taf-core.ts        # TAF operations (MCP-portable)
 │   └── parsers/
 │       └── jest.ts        # Jest parser
-├── tests/                 # Test suite (TODO)
+├── tests/                 # Test suite
+│   └── jest-parser.test.ts
 ├── dist/                  # Compiled output (gitignored)
-│   └── index.js          # Action entry point
+│   ├── cli.js            # CLI entry point ⭐
+│   └── index.js          # GitHub Action entry
 ├── README.md              # User documentation
 ├── CLAUDE.md             # This file
 └── LICENSE                # MIT license

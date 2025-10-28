@@ -1,25 +1,32 @@
 {
-  "name": "faf-taf-action",
+  "name": "faf-taf-git",
   "version": "1.0.0",
-  "description": "GitHub Action to automatically update .taf (Testing Activity Feed) files",
-  "main": "dist/index.js",
+  "description": "Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD",
+  "main": "dist/cli.js",
+  "bin": {
+    "faf-taf-git": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "package": "ncc build src/main.ts -o dist --source-map --license licenses.txt"
+    "package": "ncc build src/index.ts -o dist --source-map --license licenses.txt"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Wolfe-Jam/faf-taf-action.git"
+    "url": "git+https://github.com/Wolfe-Jam/faf-taf-git.git"
   },
   "keywords": [
     "testing",
     "taf",
-    "github-actions",
     "ci-cd",
+    "github-actions",
+    "gitlab-ci",
+    "bitbucket-pipelines",
     "test-automation",
     "jest",
-    "faf"
+    "faf",
+    "git",
+    "platform-agnostic"
   ],
   "author": "wolfejam",
   "license": "MIT",

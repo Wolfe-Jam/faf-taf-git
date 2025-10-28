@@ -1,6 +1,6 @@
-# FAF TAF Action
+# faf-taf-git
 
-**Automatically update .taf (Testing Activity Feed) files with test results from GitHub Actions**
+**Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD**
 
 Part of the Golden Triangle: `.faf` (what it is) + `repo` (implementation) + `.taf` (proof it works)
 
@@ -13,7 +13,44 @@ Part of the Golden Triangle: `.faf` (what it is) + `repo` (implementation) + `.t
 - Integration with .faf project DNA
 - No negotiation with formats - the format describes itself
 
+## Architecture
+
+**faf-taf-git** is the **core package** with platform-agnostic TAF operations.
+
+```
+faf-taf-git (CORE)
+├── Platform-agnostic TAF operations
+├── Works standalone: npx faf-taf-git
+├── Pure functions, no CI dependencies
+└── Published to npm
+
+Can be used:
+├── As standalone CLI
+├── As GitHub Action (built-in wrapper)
+├── As GitLab CI component (future)
+├── As library in your own tools
+└── In ANY CI/CD that runs Node.js
+```
+
 ## Quick Start
+
+### Standalone CLI (Works Everywhere)
+
+```bash
+# Run tests and update .taf
+npx faf-taf-git
+
+# Custom test command
+npx faf-taf-git --command "npm run test:unit"
+
+# Auto-commit changes
+npx faf-taf-git --commit
+
+# Verbose output
+npx faf-taf-git --verbose
+```
+
+### GitHub Actions
 
 ```yaml
 name: Tests
@@ -26,16 +63,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Wolfe-Jam/faf-taf-action@v1
+      - uses: Wolfe-Jam/faf-taf-git@v1
         with:
           test-command: 'npm test'
 ```
 
-That's it! The action will:
-1. Run your tests
-2. Parse the results (Jest supported)
-3. Update your `.taf` file
-4. Commit the changes automatically
+### GitLab CI
+
+```yaml
+test:
+  script:
+    - npm install
+    - npx faf-taf-git --commit
+```
+
+### Local Development
+
+```bash
+npm test && npx faf-taf-git --verbose
+```
 
 ## Prerequisites
 
@@ -46,44 +92,73 @@ npm install -g faf-cli
 faf taf init
 ```
 
-## Inputs
+## CLI Options
 
-### `test-command`
-- **Description**: Command to run tests
-- **Default**: `npm test`
-- **Example**: `npm run test:ci`
+### `--command <cmd>`
+- Test command to run
+- Default: `npm test`
+- Example: `--command "npm run test:ci"`
 
-### `auto-commit`
-- **Description**: Automatically commit .taf updates
-- **Default**: `true`
-- **Example**: `false` (to handle commits yourself)
+### `--commit`
+- Auto-commit .taf changes to git
+- Default: false
+- Example: `--commit`
 
-### `commit-message`
-- **Description**: Custom commit message for .taf updates
-- **Default**: `chore: update .taf with test results`
-- **Example**: `test: update testing timeline [skip ci]`
+### `--message <msg>`
+- Custom commit message
+- Default: `chore: update .taf with test results`
+- Example: `--message "test: update TAF [skip ci]"`
 
-## Outputs
+### `--cwd <dir>`
+- Working directory
+- Default: current directory
+- Example: `--cwd /path/to/project`
 
-### `result`
-- Test result: `PASSED`, `FAILED`, `IMPROVED`, or `DEGRADED`
+### `--verbose, -v`
+- Verbose output
+- Default: false
 
-### `passed`
-- Number of tests that passed
+### `--help, -h`
+- Show help message
 
-### `failed`
-- Number of tests that failed
+## GitHub Action Inputs/Outputs
 
-### `total`
-- Total number of tests
+When used as a GitHub Action, the same options are available as inputs:
 
-### `taf-updated`
-- Whether .taf file was updated (`true` or `false`)
+### Inputs
 
-## Example: Using Outputs
+- `test-command` - Command to run tests (default: `npm test`)
+- `auto-commit` - Auto-commit .taf updates (default: `true`)
+- `commit-message` - Custom commit message
+
+### Outputs
+
+- `result` - Test result: `PASSED`, `FAILED`, `IMPROVED`, or `DEGRADED`
+- `passed` - Number of tests that passed
+- `failed` - Number of tests that failed
+- `total` - Total number of tests
+- `taf-updated` - Whether .taf file was updated (`true` or `false`)
+
+## Platform Support
+
+Works in ANY CI/CD environment that runs Node.js:
+
+- ✅ GitHub Actions
+- ✅ GitLab CI
+- ✅ Bitbucket Pipelines
+- ✅ Jenkins
+- ✅ CircleCI
+- ✅ Travis CI
+- ✅ Azure Pipelines
+- ✅ Local development
+- ✅ Pre-commit hooks
+
+## Examples
+
+### GitHub Actions with Outputs
 
 ```yaml
-- uses: Wolfe-Jam/faf-taf-action@v1
+- uses: Wolfe-Jam/faf-taf-git@v1
   id: taf
   with:
     test-command: 'npm test'
@@ -94,68 +169,82 @@ faf taf init
     echo "Tests: ${{ steps.taf.outputs.passed }}/${{ steps.taf.outputs.total }} passing"
 ```
 
-## Example: Custom Workflow
+### GitLab CI
 
 ```yaml
-name: Advanced Testing
+stages:
+  - test
 
-on: [push]
+test:
+  stage: test
+  script:
+    - npm ci
+    - npx faf-taf-git --commit --message "ci: update .taf [skip ci]"
+```
+
+### Jenkins
+
+```groovy
+stage('Test') {
+  steps {
+    sh 'npm ci'
+    sh 'npx faf-taf-git --commit'
+  }
+}
+```
+
+### CircleCI
+
+```yaml
+version: 2.1
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write  # Required for auto-commit
-
+    docker:
+      - image: node:20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests and update .taf
-        uses: Wolfe-Jam/faf-taf-action@v1
-        id: taf
-        with:
-          test-command: 'npm run test:coverage'
-          commit-message: 'test: update .taf [skip ci]'
-
-      - name: Fail if tests failed
-        if: steps.taf.outputs.result == 'FAILED'
-        run: exit 1
+      - checkout
+      - run: npm ci
+      - run: npx faf-taf-git --commit
 ```
 
-## Supported Test Frameworks
+### Local Pre-commit Hook
 
-Currently supported:
-- **Jest** (automatic detection)
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+npm test && npx faf-taf-git
+```
+
+## Test Framework Support
+
+Currently supports:
+- ✅ Jest (all output formats)
 
 Coming soon:
-- Mocha
-- Vitest
-- Pytest
-- Go test
+- ⏳ Mocha
+- ⏳ Vitest
+- ⏳ Pytest
+- ⏳ Go test
+- ⏳ Rust cargo test
 
 ## How It Works
 
-1. **Run Tests**: Executes your test command
-2. **Parse Output**: Extracts test counts from CLI output
-3. **Update .taf**: Appends results to your .taf file
-4. **Commit**: Pushes changes back to repo (optional)
+1. **Runs your test command** - Executes the test command and captures output
+2. **Parses test results** - Extracts test counts from output
+3. **Updates .taf file** - Appends new test run to timeline
+4. **Commits changes** - Optionally commits .taf to git
+
+All operations are **platform-agnostic** - no CI-specific code.
 
 ## The Golden Triangle
 
+Projects that implement `.faf` + `repo` + `.taf` are **engineered to succeed**:
+
 ```
-        .faf
-      (WHAT IT IS)
+       .faf
+     (WHAT IT IS)
          /    \
         /      \
        /        \
@@ -163,39 +252,58 @@ Coming soon:
 (IMPLEMENTATION) (PROOF IT WORKS)
 ```
 
-Projects that work this way are engineered to succeed.
+- **.faf** tells AI what the repo is (better than any prose)
+- **repo** is the implementation (code doesn't lie)
+- **.taf** proves it works (formats don't negotiate)
 
-## Permissions
+## Philosophy: Software Accountability
 
-For auto-commit to work, ensure your workflow has write permissions:
+This tool implements a paradigm shift in how we think about testing:
 
-```yaml
-permissions:
-  contents: write
+**Before:** Tests run, results disappear, no permanent record
+
+**After:** Every test run is git-tracked, auditable, permanent
+
+`.taf` is about accountability - proof that your code works, tracked over time, visible to everyone.
+
+## Development
+
+### Build
+
+```bash
+npm run build
 ```
 
-## Skip CI
+### Test
 
-To prevent infinite loops, add `[skip ci]` to your commit message:
-
-```yaml
-- uses: Wolfe-Jam/faf-taf-action@v1
-  with:
-    commit-message: 'chore: update .taf [skip ci]'
+```bash
+npm test
 ```
 
-## Philosophy
+### Test CLI Locally
 
-> You don't negotiate with a format. The format describes itself.
+```bash
+npm run build
+node dist/cli.js --help
+```
 
-`.taf` is about software accountability - permanent, git-tracked proof that your code works. No prose, no interpretation, just facts.
+## Contributing
 
-## Learn More
-
-- [FAF Format Specification](https://faf.one/docs)
-- [.taf Documentation](https://faf.one/docs/taf)
-- [CLI Installation](https://npmjs.com/package/faf-cli)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-MIT
+MIT - FREE FOREVER
+
+## Learn More
+
+- [FAF CLI](https://npmjs.com/package/faf-cli)
+- [MCP Server](https://npmjs.com/package/claude-faf-mcp)
+- [Website](https://faf.one)
+- [GitHub Discussions](https://github.com/Wolfe-Jam/faf/discussions)
+
+---
+
+**Built with championship standards. F1-inspired engineering. Methodically tested.**
+
+*Platform-agnostic core. Works everywhere. Trust the format.*
