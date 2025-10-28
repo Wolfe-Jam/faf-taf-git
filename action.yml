@@ -1,0 +1,43 @@
+name: 'FAF TAF Action'
+description: 'Automatically update .taf (Testing Activity Feed) files with test results'
+author: 'wolfejam'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  test-command:
+    description: 'Test command to run (default: npm test)'
+    required: false
+    default: 'npm test'
+
+  auto-commit:
+    description: 'Automatically commit .taf updates (default: true)'
+    required: false
+    default: 'true'
+
+  commit-message:
+    description: 'Custom commit message for .taf updates'
+    required: false
+    default: 'chore: update .taf with test results'
+
+outputs:
+  result:
+    description: 'Test result (PASSED, FAILED, IMPROVED, DEGRADED)'
+
+  passed:
+    description: 'Number of tests passed'
+
+  failed:
+    description: 'Number of tests failed'
+
+  total:
+    description: 'Total number of tests'
+
+  taf-updated:
+    description: 'Whether .taf file was updated (true/false)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
