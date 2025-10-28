@@ -100,6 +100,14 @@ human_context:
   context_score: 0
   total_prd_score: 65
   success_rate: 50%
+scores:
+  faf_score: 50
+  slot_based_percentage: 52
+  ai_score: 65
+  total_slots: 21
+  filled_slots: 11
+  scoring_method: Honest percentage - no fake minimums
+  trust_embedded: COUNT ONCE architecture - trust MY embedded scores
 ai_scoring_details:
   system_date: 2025-09-20
   slot_based_percentage: 52
@@ -113,3 +121,6 @@ faf_dna:
   birth_certificate: FAF-2025-FAFTAFAC-TMZU
   birth_date: 2025-10-28T01:26:05.692Z
   current_score: 50
+projectName: faf-taf-git
+projectGoal: Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD
+generated: 2025-10-28T17:48:24.837Z
