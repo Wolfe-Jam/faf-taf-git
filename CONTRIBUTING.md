@@ -281,6 +281,6 @@ We maintain F1-inspired engineering standards:
 ## Questions?
 
 - GitHub Discussions: https://github.com/Wolfe-Jam/faf/discussions
-- Email: happy@faf.one
+- Email: team@faf.one
 
 Thank you for contributing to the Golden Triangle!

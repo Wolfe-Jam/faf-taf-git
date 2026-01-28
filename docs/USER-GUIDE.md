@@ -294,7 +294,7 @@ Open your `.taf` file. You'll immediately understand what it tracks and why it m
 
 - Report issues: [GitHub Issues](https://github.com/Wolfe-Jam/faf-taf-action/issues)
 - Ask questions: [GitHub Discussions](https://github.com/Wolfe-Jam/faf/discussions)
-- Email: happy@faf.one
+- Email: team@faf.one
 
 ## License
 

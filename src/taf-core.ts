@@ -33,15 +33,24 @@ interface TestRun {
 
 /**
  * Update .taf file with new test results
+ * Creates the file if it doesn't exist
  */
-export async function updateTafFile(
+export function updateTafFile(
   tafPath: string,
   testResults: TestResults
-): Promise<boolean> {
+): boolean {
   try {
-    // Read existing .taf file
-    const content = fs.readFileSync(tafPath, 'utf-8');
-    const taf = parseTAF(content);
+    let taf: TAFFile;
+
+    // Check if .taf exists, create if not
+    if (fs.existsSync(tafPath)) {
+      const content = fs.readFileSync(tafPath, 'utf-8');
+      taf = parseTAF(content);
+    } else {
+      // Create new .taf file
+      const projectName = require('path').basename(require('path').dirname(tafPath));
+      taf = createTAF(projectName);
+    }
 
     // Create test run entry
     const run: TestRun = {
@@ -68,6 +77,19 @@ export async function updateTafFile(
     console.error('Failed to update .taf file:', error);
     return false;
   }
+}
+
+/**
+ * Create a new TAF file structure
+ */
+function createTAF(projectName: string): TAFFile {
+  return {
+    format_version: '1.0.0',
+    project: projectName,
+    created: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+    test_history: [],
+  };
 }
 
 /**

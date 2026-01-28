@@ -44,12 +44,21 @@ const fs = __importStar(require("fs"));
 const yaml = __importStar(require("yaml"));
 /**
  * Update .taf file with new test results
+ * Creates the file if it doesn't exist
  */
-async function updateTafFile(tafPath, testResults) {
+function updateTafFile(tafPath, testResults) {
     try {
-        // Read existing .taf file
-        const content = fs.readFileSync(tafPath, 'utf-8');
-        const taf = parseTAF(content);
+        let taf;
+        // Check if .taf exists, create if not
+        if (fs.existsSync(tafPath)) {
+            const content = fs.readFileSync(tafPath, 'utf-8');
+            taf = parseTAF(content);
+        }
+        else {
+            // Create new .taf file
+            const projectName = require('path').basename(require('path').dirname(tafPath));
+            taf = createTAF(projectName);
+        }
         // Create test run entry
         const run = {
             timestamp: new Date().toISOString(),
@@ -73,6 +82,18 @@ async function updateTafFile(tafPath, testResults) {
         console.error('Failed to update .taf file:', error);
         return false;
     }
+}
+/**
+ * Create a new TAF file structure
+ */
+function createTAF(projectName) {
+    return {
+        format_version: '1.0.0',
+        project: projectName,
+        created: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+        test_history: [],
+    };
 }
 /**
  * Parse .taf file content

@@ -193,7 +193,7 @@ Report bugs, request features, or ask questions:
 
 - GitHub Issues: https://github.com/Wolfe-Jam/faf-taf-action/issues
 - GitHub Discussions: https://github.com/Wolfe-Jam/faf/discussions
-- Email: happy@faf.one
+- Email: team@faf.one
 
 ---
 
