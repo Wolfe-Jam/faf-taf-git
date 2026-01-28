@@ -2,8 +2,8 @@
 node_modules/
 package-lock.json
 
-# Build output
-dist/
+# Build output (NOT ignored - GitHub Actions needs dist/)
+# dist/
 
 # Test coverage
 coverage/
