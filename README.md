@@ -13,6 +13,12 @@ Part of the Golden Triangle: `.faf` (what it is) + `repo` (implementation) + `.t
 - Integration with .faf project DNA
 - No negotiation with formats - the format describes itself
 
+## Live Demo
+
+See it in action: [faf-taf-demo](https://github.com/Wolfe-Jam/faf-taf-demo)
+
+A minimal repo showing the Git-Native Receipt Printer updating `.taf` automatically on every push.
+
 ## Architecture
 
 **faf-taf-git** is the **core package** with platform-agnostic TAF operations.
