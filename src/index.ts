@@ -23,7 +23,7 @@ async function run(): Promise<void> {
       autoCommit,
       commitMessage,
       verbose: true,
-      logger: core.info,
+      logger: (msg: string) => core.info(msg),
     });
 
     // Set GitHub Action outputs

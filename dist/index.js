@@ -26048,7 +26048,7 @@ async function run() {
             autoCommit,
             commitMessage,
             verbose: true,
-            logger: core.info,
+            logger: (msg) => core.info(msg),
         });
         // Set GitHub Action outputs
         if (result.testResults) {
