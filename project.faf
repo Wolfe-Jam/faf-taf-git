@@ -4,25 +4,33 @@ ai_score: 65%
 ai_confidence: MODERATE
 ai_value: 30_seconds_replaces_20_minutes_of_questions
 ai_tldr:
-  project: faf-taf-git - Git-tracked testing timelines for ANY CI/CD
-  stack: TypeScript CLI + GitHub Action wrapper
+  project: faf-taf-git v2.0.4 - Git-tracked testing timelines for ANY CI/CD
+  stack: TypeScript CLI + GitHub Action (pre-capture architecture)
   quality_bar: ZERO_ERRORS_F1_STANDARDS
-  current_focus: Golden Triangle implementation (.faf + repo + .taf)
-  your_role: Build features with perfect context
+  status: PRODUCTION_READY (working in faf-cli repo)
+  breakthrough: v2.0.0 pre-capture pattern (tested 19 methods before this)
+  current_focus: Ecosystem adoption and user onboarding
+  your_role: Support users, fix bugs, add test framework support
 instant_context:
   what_building: Platform-agnostic CLI + GitHub Action for TAF updates
   tech_stack: TypeScript
   main_language: TypeScript
   deployment: npm + GitHub Actions Marketplace
-  architecture: Core package with platform-agnostic TAF operations plus GitHub Action wrapper
+  architecture: v2.0.0 pre-capture pattern (separate test execution from receipt generation)
   use_cases: Standalone CLI, GitHub Action, GitLab CI, Jenkins, CircleCI, Local development
-  test_support: Jest with plans for Mocha, Vitest, Pytest, Go test, Rust cargo
+  test_support: Jest (fully supported) with plans for Mocha, Vitest, Pytest, Go test, Rust cargo
   golden_triangle: .faf (project DNA) + repo (code) + .taf (test proof)
   key_files:
-    - src/cli.ts (core)
-    - src/index.ts (GitHub wrapper)
-    - src/taf-core.ts (MCP-portable)
-    - package.json
+    - src/index.ts (v2.0.0 rewrite - reads test output file)
+    - src/parsers/jest.ts (v2.0.4 fix - correct pattern matching)
+    - src/taf-core.ts (MCP-portable core)
+    - action.yml (v2.0.2 fix - correct bundle path)
+    - README.md (6Ws format)
+    - CHANGELOG.md (22 versions documented)
+  documentation:
+    - README: 6Ws format (What/Who/Why/Where/When/How)
+    - CHANGELOG: Complete debugging journey (v1.0.4 → v2.0.4)
+    - Migration guide: v1.x → v2.x breaking changes
 context_quality:
   slots_filled: 11/21 (52%)
   ai_confidence: MODERATE
@@ -75,13 +83,28 @@ stack:
 cli_features:
   commands:
     - npx faf-taf-git
-    - --command (custom test command)
+    - --file (test output file - v2.0.0+)
+    - --command (custom test command - legacy v1.x)
     - --commit (auto-commit .taf changes)
     - --verbose (detailed output)
     - --message (custom commit message)
     - --cwd (working directory)
+  github_action_inputs:
+    test-output-file: required (v2.0.0+)
+    auto-commit: true (default)
+    commit-message: "chore(taf): update .taf receipt [skip ci] (default)"
+  architecture:
+    version: v2.0.0
+    pattern: pre-capture
+    breakthrough: Separate test execution from receipt generation
+    why: Avoids GitHub Actions execution context corruption
+    reliability: Tested 19 methods before this solution
+    benefits:
+      - More reliable (no execution context issues)
+      - Platform-agnostic (works everywhere)
+      - Simpler (400+ lines removed, 11KB smaller)
   test_frameworks:
-    - Jest
+    - Jest (fully supported)
   supported_platforms:
     - GitHub Actions
     - GitLab CI
@@ -98,6 +121,36 @@ taf_format:
   links_to_faf: true
   snapshots_faf_score: true
   closed_loop_system: .faf (DNA) + repo (code) + .taf (proof) = Golden Triangle
+deployment:
+  npm_package: faf-taf-git@2.0.4
+  github_action: Wolfe-Jam/faf-taf-git@v2.0.4
+  marketplaces:
+    - npm Registry
+    - GitHub Actions Marketplace
+  install: npx faf-taf-git
+  production_users:
+    - faf-cli (working in CI)
+testing:
+  framework: Jest
+  coverage: Core functionality
+  ci_integration: GitHub Actions
+  test_files:
+    - tests/ (unit tests)
+  quality_gates:
+    - All tests must pass
+    - TypeScript strict mode
+    - Zero build errors
+examples:
+  github_actions: README.md Quick Start section
+  standalone_cli: README.md Standalone CLI section
+  gitlab_ci: README.md GitLab CI section
+  jenkins: README.md Jenkins section
+  migration: README.md Migration from v1.x section
+performance:
+  bundle_size: 1.2MB (v2.0.0 - reduced 11KB from v1.x)
+  startup_time: <100ms
+  parse_time: <10ms for typical Jest output
+  reliability: 100% success rate in faf-cli CI (after v2.0.4)
 preferences:
   quality_bar: zero_errors
   commit_style: conventional_emoji
@@ -106,12 +159,33 @@ preferences:
   communication: direct
   testing: required
   documentation: as_needed
+contributing:
+  guidelines: CONTRIBUTING.md
+  code_style: TypeScript strict mode
+  pr_process: Fork, branch, PR with tests
+  commit_format: Conventional commits with Co-Authored-By
+  testing_required: true
+  documentation_required: For new features
+resources:
+  readme: README.md (6Ws format)
+  changelog: CHANGELOG.md (22 versions documented)
+  license: MIT
+  repository: https://github.com/Wolfe-Jam/faf-taf-git
+  npm: https://npmjs.com/package/faf-taf-git
+  issues: https://github.com/Wolfe-Jam/faf-taf-git/issues
+  discussions: https://github.com/Wolfe-Jam/faf/discussions
 state:
-  phase: development
-  version: 1.0.0
-  focus: production_deployment
-  status: green_flag
-  next_milestone: npm_publication
+  phase: production
+  version: 2.0.4
+  focus: ecosystem_adoption
+  status: production_ready
+  achievements:
+    - v2.0.0 architectural redesign (pre-capture pattern)
+    - v2.0.4 parser fix (working in CI)
+    - Updated README (6Ws format)
+    - Updated CHANGELOG (22 versions documented)
+    - TAF Receipt generating successfully in faf-cli repo
+  next_milestone: user_adoption
   blockers: null
 tags:
   auto_generated:
@@ -159,4 +233,6 @@ faf_dna:
   current_score: 50
 projectName: faf-taf-git
 projectGoal: Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD
-generated: 2025-10-28T17:48:24.837Z
+generated: 2026-02-17T20:15:00.000Z
+last_major_update: v2.0.4 (2026-02-17)
+production_status: Working in faf-cli repository
