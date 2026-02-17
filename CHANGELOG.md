@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-02-17
+
+### Fixed
+- Improved Jest output parser robustness (handles carriage returns, multiple line endings, flexible pattern matching)
+- Parser now tries multiple patterns to find test summary line
+- Better handling of padded output from CI environments
+
 ## [1.0.7] - 2026-02-17
 
 ### Added
