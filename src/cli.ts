@@ -66,10 +66,26 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
 
     if (verbose) console.log(`Test command exit code: ${exitCode}`);
 
+    // Debug: Show sample of output for troubleshooting
+    if (verbose) {
+      const lines = output.split('\n');
+      const testLine = lines.find(l => l.includes('Tests:'));
+      console.log(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
+      if (testLine) {
+        console.log(`DEBUG: Tests line: "${testLine}"`);
+        console.log(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
+      }
+    }
+
     // Parse test output
     const testResults = parseJestOutput(output);
 
     if (!testResults) {
+      if (verbose) {
+        console.log(`DEBUG: Parser returned null`);
+        console.log(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
+        console.log(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
+      }
       return {
         success: false,
         tafUpdated: false,
