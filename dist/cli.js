@@ -43,6 +43,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTafGit = runTafGit;
 const exec = __importStar(require("@actions/exec"));
 const fs = __importStar(require("fs"));
+const os = __importStar(require("os"));
 const path = __importStar(require("path"));
 const jest_1 = require("./parsers/jest");
 const taf_core_1 = require("./taf-core");
@@ -97,7 +98,7 @@ async function runTafGit(options = {}) {
                 const locations = [
                     path.join(cwd, 'TAF_DEBUG_CANARY.txt'), // Original cwd
                     path.join(process.cwd(), 'TAF_DEBUG_CANARY.txt'), // Process cwd
-                    '/tmp/TAF_DEBUG_CANARY.txt', // Absolute tmp
+                    path.join(os.tmpdir(), 'TAF_DEBUG_CANARY.txt'), // OS temp directory
                     'TAF_DEBUG_CANARY.txt' // Current directory
                 ];
                 let writeSuccess = false;
@@ -134,8 +135,9 @@ async function runTafGit(options = {}) {
         if (verbose) {
             try {
                 const fs = require('fs');
-                fs.writeFileSync('/tmp/taf-debug-output.txt', output);
-                logger(`DEBUG: Wrote ${output.length} bytes to /tmp/taf-debug-output.txt`);
+                const debugPath = path.join(os.tmpdir(), 'taf-debug-output.txt');
+                fs.writeFileSync(debugPath, output);
+                logger(`DEBUG: Wrote ${output.length} bytes to ${debugPath}`);
                 const lines = output.split('\n');
                 const testLine = lines.find(l => l.includes('Tests:'));
                 logger(`DEBUG: Output has ${lines.length} lines, Found "Tests:": ${testLine ? 'YES' : 'NO'}`);
