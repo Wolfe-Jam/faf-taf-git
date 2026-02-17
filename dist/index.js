@@ -25643,394 +25643,15 @@ module.exports = {
 
 /***/ }),
 
-/***/ 5581:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-/**
- * faf-taf-git - Standalone CLI for TAF operations
- *
- * Platform-agnostic core that works in ANY CI/CD environment
- * Can be used standalone or as a library by wrappers
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runTafGit = runTafGit;
-const exec = __importStar(__nccwpck_require__(5236));
-const fs = __importStar(__nccwpck_require__(9896));
-const path = __importStar(__nccwpck_require__(6928));
-const jest_1 = __nccwpck_require__(3416);
-const taf_core_1 = __nccwpck_require__(390);
-/**
- * Main CLI function - platform-agnostic
- * Can be called from GitHub Actions, GitLab CI, or standalone
- */
-async function runTafGit(options = {}) {
-    const { command = 'npm test', autoCommit = false, commitMessage = 'chore: update .taf with test results', cwd = process.cwd(), verbose = false, logger = console.log, } = options;
-    try {
-        if (verbose)
-            console.log(`Running test command: ${command}`);
-        // Run tests and capture output using @actions/exec
-        let output = '';
-        let exitCode = 0;
-        try {
-            // Parse command into executable and args
-            // For "npm test" -> ["npm", "test"]
-            const commandParts = command.split(' ');
-            const executable = commandParts[0];
-            const args = commandParts.slice(1);
-            const options = {
-                cwd,
-                silent: false, // Show output in logs
-                ignoreReturnCode: true // Don't throw on non-zero exit
-            };
-            // --- [START NUCLEAR CANARY] ---
-            // Use getExecOutput to capture stdout/stderr
-            const result = await exec.getExecOutput(executable, args, options);
-            // THE NUCLEAR CANARY: Write directly to disk, bypassing stdout/stderr streams
-            // Write to MULTIPLE locations to ensure we find it!
-            const canaryContent = [
-                `=========================================`,
-                `TAF DEBUG CANARY REPORT`,
-                `Timestamp: ${new Date().toISOString()}`,
-                `CWD: ${cwd}`,
-                `Process CWD: ${process.cwd()}`,
-                `=========================================`,
-                `Exit Code: ${result.exitCode}`,
-                `Stdout Length: ${result.stdout.length}`,
-                `Stderr Length: ${result.stderr.length}`,
-                `-----------------------------------------`,
-                `STDOUT PREVIEW (First 500 chars):`,
-                `${result.stdout.substring(0, 500)}`,
-                `-----------------------------------------`,
-                `STDERR PREVIEW (First 500 chars):`,
-                `${result.stderr.substring(0, 500)}`,
-                `=========================================`
-            ].join('\n');
-            try {
-                // Try multiple locations!
-                const locations = [
-                    path.join(cwd, 'TAF_DEBUG_CANARY.txt'), // Original cwd
-                    path.join(process.cwd(), 'TAF_DEBUG_CANARY.txt'), // Process cwd
-                    '/tmp/TAF_DEBUG_CANARY.txt', // Absolute tmp
-                    'TAF_DEBUG_CANARY.txt' // Current directory
-                ];
-                let writeSuccess = false;
-                for (const loc of locations) {
-                    try {
-                        fs.writeFileSync(loc, canaryContent);
-                        writeSuccess = true;
-                    }
-                    catch (e) {
-                        // Try next location
-                    }
-                }
-                if (!writeSuccess) {
-                    throw new Error('CRITICAL: Failed to write canary to ANY location!');
-                }
-            }
-            catch (fsError) {
-                // If we can't write to disk, we are truly doomed
-                throw new Error(`CRITICAL: Failed to write canary file: ${fsError.message}`);
-            }
-            // Continue with original logic
-            exitCode = result.exitCode;
-            output = result.stdout + result.stderr;
-            // --- [END NUCLEAR CANARY] ---
-        }
-        catch (error) {
-            exitCode = 1;
-            if (verbose) {
-                logger(`Test command failed with error: ${error.message}`);
-                logger(`Captured output length: ${output.length} bytes`);
-            }
-        }
-        // Debug: Write entire output to file for inspection
-        if (verbose) {
-            try {
-                const fs = __nccwpck_require__(9896);
-                fs.writeFileSync('/tmp/taf-debug-output.txt', output);
-                logger(`DEBUG: Wrote ${output.length} bytes to /tmp/taf-debug-output.txt`);
-                const lines = output.split('\n');
-                const testLine = lines.find(l => l.includes('Tests:'));
-                logger(`DEBUG: Output has ${lines.length} lines, Found "Tests:": ${testLine ? 'YES' : 'NO'}`);
-                if (testLine) {
-                    logger(`DEBUG: Tests line: "${testLine}"`);
-                }
-                else {
-                    logger(`DEBUG: Last 10 lines of output:`);
-                    lines.slice(-10).forEach((line, i) => {
-                        logger(`  ${i}: ${line.substring(0, 100)}`);
-                    });
-                }
-            }
-            catch (err) {
-                logger(`DEBUG: Error writing debug file: ${err}`);
-            }
-        }
-        // Parse test output
-        const testResults = (0, jest_1.parseJestOutput)(output);
-        if (!testResults) {
-            if (verbose) {
-                logger(`DEBUG: Parser returned null`);
-                logger(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
-                logger(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
-            }
-            return {
-                success: false,
-                tafUpdated: false,
-                error: 'Could not parse test output. Ensure you are using Jest.',
-            };
-        }
-        if (verbose) {
-            logger(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
-        }
-        // Check if .taf file exists
-        const tafPath = path.join(cwd, '.taf');
-        if (!fs.existsSync(tafPath)) {
-            return {
-                success: false,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: false,
-                error: 'No .taf file found. Run `faf taf init` to create one.',
-            };
-        }
-        // Update .taf file
-        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
-        if (updated) {
-            if (verbose)
-                logger('✅ .taf file updated successfully');
-            // Commit changes if enabled
-            if (autoCommit) {
-                await commitTafUpdate(cwd, commitMessage, verbose, logger);
-                if (verbose)
-                    logger('✅ Changes committed to git');
-            }
-            return {
-                success: true,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: true,
-            };
-        }
-        else {
-            return {
-                success: false,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: false,
-                error: '.taf file was not updated',
-            };
-        }
-    }
-    catch (error) {
-        return {
-            success: false,
-            tafUpdated: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-}
-/**
- * Commit .taf file changes to git (platform-agnostic)
- */
-async function commitTafUpdate(cwd, message, verbose, logger = console.log) {
-    try {
-        const execOptions = { cwd };
-        // Configure git if needed
-        await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
-        await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
-        // Stage .taf file
-        await exec.exec('git', ['add', '.taf'], execOptions);
-        // Check if there are changes to commit
-        let diffOutput = '';
-        const diffOptions = {
-            cwd,
-            listeners: {
-                stdout: (data) => {
-                    diffOutput += data.toString();
-                }
-            }
-        };
-        await exec.exec('git', ['diff', '--cached', '--name-only'], diffOptions);
-        if (diffOutput.trim().length > 0) {
-            await exec.exec('git', ['commit', '-m', message], execOptions);
-            // Try to push (might fail in some environments, that's ok)
-            try {
-                await exec.exec('git', ['push'], execOptions);
-            }
-            catch (error) {
-                if (verbose) {
-                    logger('Could not push changes (this is ok in some CI environments)');
-                }
-            }
-        }
-        else {
-            if (verbose)
-                logger('No changes to commit');
-        }
-    }
-    catch (error) {
-        if (verbose) {
-            logger(`Error committing changes: ${error}`);
-        }
-        throw error;
-    }
-}
-/**
- * CLI entry point - parse args and run
- */
-async function main() {
-    const args = process.argv.slice(2);
-    const options = {
-        verbose: args.includes('--verbose') || args.includes('-v'),
-    };
-    // Parse command flag
-    const commandIndex = args.indexOf('--command');
-    if (commandIndex !== -1 && args[commandIndex + 1]) {
-        options.command = args[commandIndex + 1];
-    }
-    // Parse auto-commit flag
-    if (args.includes('--commit')) {
-        options.autoCommit = true;
-    }
-    // Parse commit message
-    const messageIndex = args.indexOf('--message');
-    if (messageIndex !== -1 && args[messageIndex + 1]) {
-        options.commitMessage = args[messageIndex + 1];
-    }
-    // Parse working directory
-    const cwdIndex = args.indexOf('--cwd');
-    if (cwdIndex !== -1 && args[cwdIndex + 1]) {
-        options.cwd = args[cwdIndex + 1];
-    }
-    // Show help
-    if (args.includes('--help') || args.includes('-h')) {
-        console.log(`
-faf-taf-git - Platform-agnostic TAF updater
-
-USAGE:
-  npx faf-taf-git [OPTIONS]
-
-OPTIONS:
-  --command <cmd>     Test command to run (default: npm test)
-  --commit            Auto-commit .taf changes to git
-  --message <msg>     Custom commit message
-  --cwd <dir>         Working directory (default: current)
-  --verbose, -v       Verbose output
-  --help, -h          Show this help
-
-EXAMPLES:
-  # Run tests and update .taf
-  npx faf-taf-git
-
-  # Custom test command
-  npx faf-taf-git --command "npm run test:unit"
-
-  # Auto-commit changes
-  npx faf-taf-git --commit
-
-  # Custom commit message
-  npx faf-taf-git --commit --message "test: update TAF"
-
-  # Verbose mode
-  npx faf-taf-git --verbose
-
-PLATFORM SUPPORT:
-  ✅ GitHub Actions
-  ✅ GitLab CI
-  ✅ Bitbucket Pipelines
-  ✅ Jenkins
-  ✅ CircleCI
-  ✅ Local development
-  ✅ Any CI/CD that runs Node.js
-
-LEARN MORE:
-  https://github.com/Wolfe-Jam/faf-taf-git
-`);
-        process.exit(0);
-    }
-    // Run the tool
-    const result = await runTafGit(options);
-    if (result.success) {
-        if (result.testResults) {
-            console.log(`✅ Tests: ${result.testResults.passed}/${result.testResults.total} passing`);
-            console.log(`✅ Result: ${result.testResults.result}`);
-        }
-        if (result.tafUpdated) {
-            console.log('✅ .taf file updated');
-        }
-        process.exit(0);
-    }
-    else {
-        console.error(`❌ Error: ${result.error}`);
-        if (result.testResults) {
-            console.log(`Tests: ${result.testResults.passed}/${result.testResults.total} passing`);
-        }
-        process.exit(1);
-    }
-}
-// Run CLI if called directly
-if (false) {}
-
-
-/***/ }),
-
 /***/ 9407:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
 /**
- * faf-taf-git - GitHub Actions wrapper
+ * faf-taf-git v2.0.0 - GitHub Actions wrapper
  *
- * Thin wrapper around the platform-agnostic CLI core
+ * Pre-Capture Pattern: Reads test output from file (written by previous step)
  * Handles GitHub Actions-specific inputs/outputs
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -26068,42 +25689,83 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
-const cli_1 = __nccwpck_require__(5581);
+const exec = __importStar(__nccwpck_require__(5236));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const jest_1 = __nccwpck_require__(3416);
+const taf_core_1 = __nccwpck_require__(390);
+/**
+ * Commit .taf file changes to git
+ */
+async function commitTafUpdate(cwd, message) {
+    const execOptions = { cwd };
+    // Configure git
+    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+    // Stage .taf file
+    await exec.exec('git', ['add', '.taf'], execOptions);
+    // Check if there are changes to commit
+    const { exitCode } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+    if (exitCode === 0) {
+        await exec.exec('git', ['commit', '-m', message], execOptions);
+        // Try to push (might fail in some environments, that's ok)
+        try {
+            await exec.exec('git', ['push'], execOptions);
+        }
+        catch (error) {
+            core.warning('Could not push changes (this is ok in some CI environments)');
+        }
+    }
+}
 async function run() {
     try {
         // Get GitHub Action inputs
-        const testCommand = core.getInput('test-command') || 'npm test';
+        const testOutputFile = core.getInput('test-output-file', { required: true });
         const autoCommit = core.getInput('auto-commit') !== 'false';
-        const commitMessage = core.getInput('commit-message') || 'chore: update .taf with test results';
-        core.info(`Running test command: ${testCommand}`);
-        // Call the platform-agnostic core
-        const result = await (0, cli_1.runTafGit)({
-            command: testCommand,
-            autoCommit,
-            commitMessage,
-            verbose: true,
-            logger: (msg) => {
-                core.info(msg);
-                console.log(`[FORCE LOG] ${msg}`);
-            },
-        });
+        const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
+        const cwd = process.cwd();
+        core.info(`Reading test output from: ${testOutputFile}`);
+        // Read test output file (written by previous CI step)
+        const testOutputPath = path.isAbsolute(testOutputFile)
+            ? testOutputFile
+            : path.join(cwd, testOutputFile);
+        if (!fs.existsSync(testOutputPath)) {
+            core.setFailed(`Test output file not found: ${testOutputPath}`);
+            return;
+        }
+        const testOutput = fs.readFileSync(testOutputPath, 'utf-8');
+        core.info(`Read ${testOutput.length} bytes from test output file`);
+        // Parse test results
+        const testResults = (0, jest_1.parseJestOutput)(testOutput);
+        if (!testResults) {
+            core.setFailed('Could not parse test output. Ensure you are using Jest.');
+            return;
+        }
+        core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
         // Set GitHub Action outputs
-        if (result.testResults) {
-            core.setOutput('result', result.testResults.result);
-            core.setOutput('passed', result.testResults.passed.toString());
-            core.setOutput('failed', result.testResults.failed.toString());
-            core.setOutput('total', result.testResults.total.toString());
-            core.info(`Parsed results: ${result.testResults.passed}/${result.testResults.total} tests passing`);
+        core.setOutput('result', testResults.result);
+        core.setOutput('passed', testResults.passed.toString());
+        core.setOutput('failed', testResults.failed.toString());
+        core.setOutput('total', testResults.total.toString());
+        // Check if .taf file exists
+        const tafPath = path.join(cwd, '.taf');
+        if (!fs.existsSync(tafPath)) {
+            core.setFailed('No .taf file found. Run `faf taf init` to create one.');
+            return;
         }
-        core.setOutput('taf-updated', result.tafUpdated ? 'true' : 'false');
-        if (result.success) {
-            core.info('✅ .taf file updated successfully');
-            if (autoCommit) {
-                core.info('✅ Changes committed to git');
-            }
+        // Update .taf file
+        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
+        if (!updated) {
+            core.setOutput('taf-updated', 'false');
+            core.setFailed('.taf file was not updated');
+            return;
         }
-        else {
-            core.setFailed(result.error || 'Unknown error occurred');
+        core.setOutput('taf-updated', 'true');
+        core.info('✅ .taf file updated successfully');
+        // Commit changes if enabled
+        if (autoCommit) {
+            await commitTafUpdate(cwd, commitMessage);
+            core.info('✅ Changes committed to git');
         }
     }
     catch (error) {

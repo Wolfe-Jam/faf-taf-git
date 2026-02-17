@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * faf-taf-git - Standalone CLI for TAF operations
  *

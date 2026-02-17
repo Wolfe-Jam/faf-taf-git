@@ -7,10 +7,9 @@ branding:
   color: 'green'
 
 inputs:
-  test-command:
-    description: 'Test command to run (default: npm test)'
-    required: false
-    default: 'npm test'
+  test-output-file:
+    description: 'Path to file containing test output (created by previous step)'
+    required: true
 
   auto-commit:
     description: 'Automatically commit .taf updates (default: true)'
@@ -20,7 +19,7 @@ inputs:
   commit-message:
     description: 'Custom commit message for .taf updates'
     required: false
-    default: 'chore: update .taf with test results'
+    default: 'chore(taf): update .taf receipt [skip ci]'
 
 outputs:
   result:
