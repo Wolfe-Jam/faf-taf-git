@@ -25719,14 +25719,27 @@ async function runTafGit(options = {}) {
         }
         if (verbose)
             logger(`Test command exit code: ${exitCode}`);
-        // Debug: Show sample of output for troubleshooting
+        // Debug: Write entire output to file for inspection
         if (verbose) {
-            const lines = output.split('\n');
-            const testLine = lines.find(l => l.includes('Tests:'));
-            logger(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
-            if (testLine) {
-                logger(`DEBUG: Tests line: "${testLine}"`);
-                logger(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
+            try {
+                const fs = __nccwpck_require__(9896);
+                fs.writeFileSync('/tmp/taf-debug-output.txt', output);
+                logger(`DEBUG: Wrote ${output.length} bytes to /tmp/taf-debug-output.txt`);
+                const lines = output.split('\n');
+                const testLine = lines.find(l => l.includes('Tests:'));
+                logger(`DEBUG: Output has ${lines.length} lines, Found "Tests:": ${testLine ? 'YES' : 'NO'}`);
+                if (testLine) {
+                    logger(`DEBUG: Tests line: "${testLine}"`);
+                }
+                else {
+                    logger(`DEBUG: Last 10 lines of output:`);
+                    lines.slice(-10).forEach((line, i) => {
+                        logger(`  ${i}: ${line.substring(0, 100)}`);
+                    });
+                }
+            }
+            catch (err) {
+                logger(`DEBUG: Error writing debug file: ${err}`);
             }
         }
         // Parse test output
