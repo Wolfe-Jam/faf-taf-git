@@ -69,18 +69,38 @@ async function runTafGit(options = {}) {
                 silent: false, // Show output in logs
                 ignoreReturnCode: true // Don't throw on non-zero exit
             };
+            // --- [START NUCLEAR CANARY] ---
             // Use getExecOutput to capture stdout/stderr
             const result = await exec.getExecOutput(executable, args, options);
+            // THE NUCLEAR CANARY: Write directly to disk, bypassing stdout/stderr streams
+            try {
+                const canaryPath = path.join(cwd, 'TAF_DEBUG_CANARY.txt');
+                const canaryContent = [
+                    `=========================================`,
+                    `TAF DEBUG CANARY REPORT`,
+                    `Timestamp: ${new Date().toISOString()}`,
+                    `=========================================`,
+                    `Exit Code: ${result.exitCode}`,
+                    `Stdout Length: ${result.stdout.length}`,
+                    `Stderr Length: ${result.stderr.length}`,
+                    `-----------------------------------------`,
+                    `STDOUT PREVIEW (First 500 chars):`,
+                    `${result.stdout.substring(0, 500)}`,
+                    `-----------------------------------------`,
+                    `STDERR PREVIEW (First 500 chars):`,
+                    `${result.stderr.substring(0, 500)}`,
+                    `=========================================`
+                ].join('\n');
+                fs.writeFileSync(canaryPath, canaryContent);
+            }
+            catch (fsError) {
+                // If we can't write to disk, we are truly doomed
+                throw new Error(`CRITICAL: Failed to write canary file: ${fsError.message}`);
+            }
+            // Continue with original logic
             exitCode = result.exitCode;
             output = result.stdout + result.stderr;
-            // Use console.error for debugging (logger function seems to fail here)
-            if (verbose) {
-                console.error(`[TAF DEBUG] Test command exit code: ${exitCode}`);
-                console.error(`[TAF DEBUG] Captured output length: ${output.length} bytes`);
-                if (output.length > 0) {
-                    console.error(`[TAF DEBUG] Output preview (first 200 chars): ${output.substring(0, 200)}`);
-                }
-            }
+            // --- [END NUCLEAR CANARY] ---
         }
         catch (error) {
             exitCode = 1;
