@@ -59,6 +59,11 @@ async function runTafGit(options = {}) {
         let output = '';
         let exitCode = 0;
         try {
+            // Parse command into executable and args
+            // For "npm test" -> ["npm", "test"]
+            const commandParts = command.split(' ');
+            const executable = commandParts[0];
+            const args = commandParts.slice(1);
             const options = {
                 cwd,
                 listeners: {
@@ -70,7 +75,7 @@ async function runTafGit(options = {}) {
                     }
                 }
             };
-            exitCode = await exec.exec(command, [], options);
+            exitCode = await exec.exec(executable, args, options);
             if (verbose) {
                 logger(`Test command exit code: ${exitCode}`);
                 logger(`Captured output length: ${output.length} bytes`);
