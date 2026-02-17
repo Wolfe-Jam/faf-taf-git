@@ -71,8 +71,12 @@ async function runTafGit(options = {}) {
             };
             // Use getExecOutput to capture stdout/stderr
             const result = await exec.getExecOutput(executable, args, options);
+            // CRITICAL TEST: Log immediately after getExecOutput
+            logger('[CHECKPOINT 1] getExecOutput completed');
             exitCode = result.exitCode;
+            logger('[CHECKPOINT 2] exitCode assigned');
             output = result.stdout + result.stderr;
+            logger('[CHECKPOINT 3] output assigned');
             // UNCONDITIONAL logging for debugging
             logger(`[DEBUG] verbose=${verbose}, exitCode=${exitCode}, output.length=${output.length}`);
             logger(`[DEBUG] output type: ${typeof output}, is string: ${typeof output === 'string'}`);
