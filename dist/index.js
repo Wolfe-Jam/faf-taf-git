@@ -25714,19 +25714,19 @@ async function runTafGit(options = {}) {
             const args = commandParts.slice(1);
             const options = {
                 cwd,
-                listeners: {
-                    stdout: (data) => {
-                        output += data.toString();
-                    },
-                    stderr: (data) => {
-                        output += data.toString();
-                    }
-                }
+                silent: false, // Show output in logs
+                ignoreReturnCode: true // Don't throw on non-zero exit
             };
-            exitCode = await exec.exec(executable, args, options);
+            // Use getExecOutput to capture stdout/stderr
+            const result = await exec.getExecOutput(executable, args, options);
+            exitCode = result.exitCode;
+            output = result.stdout + result.stderr;
             if (verbose) {
                 logger(`Test command exit code: ${exitCode}`);
                 logger(`Captured output length: ${output.length} bytes`);
+                if (output.length > 0) {
+                    logger(`Output preview (first 200 chars): ${output.substring(0, 200)}`);
+                }
             }
         }
         catch (error) {
