@@ -72,26 +72,48 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       const result = await exec.getExecOutput(executable, args, options);
 
       // THE NUCLEAR CANARY: Write directly to disk, bypassing stdout/stderr streams
-      try {
-        const canaryPath = path.join(cwd, 'TAF_DEBUG_CANARY.txt');
-        const canaryContent = [
-          `=========================================`,
-          `TAF DEBUG CANARY REPORT`,
-          `Timestamp: ${new Date().toISOString()}`,
-          `=========================================`,
-          `Exit Code: ${result.exitCode}`,
-          `Stdout Length: ${result.stdout.length}`,
-          `Stderr Length: ${result.stderr.length}`,
-          `-----------------------------------------`,
-          `STDOUT PREVIEW (First 500 chars):`,
-          `${result.stdout.substring(0, 500)}`,
-          `-----------------------------------------`,
-          `STDERR PREVIEW (First 500 chars):`,
-          `${result.stderr.substring(0, 500)}`,
-          `=========================================`
-        ].join('\n');
+      // Write to MULTIPLE locations to ensure we find it!
+      const canaryContent = [
+        `=========================================`,
+        `TAF DEBUG CANARY REPORT`,
+        `Timestamp: ${new Date().toISOString()}`,
+        `CWD: ${cwd}`,
+        `Process CWD: ${process.cwd()}`,
+        `=========================================`,
+        `Exit Code: ${result.exitCode}`,
+        `Stdout Length: ${result.stdout.length}`,
+        `Stderr Length: ${result.stderr.length}`,
+        `-----------------------------------------`,
+        `STDOUT PREVIEW (First 500 chars):`,
+        `${result.stdout.substring(0, 500)}`,
+        `-----------------------------------------`,
+        `STDERR PREVIEW (First 500 chars):`,
+        `${result.stderr.substring(0, 500)}`,
+        `=========================================`
+      ].join('\n');
 
-        fs.writeFileSync(canaryPath, canaryContent);
+      try {
+        // Try multiple locations!
+        const locations = [
+          path.join(cwd, 'TAF_DEBUG_CANARY.txt'),           // Original cwd
+          path.join(process.cwd(), 'TAF_DEBUG_CANARY.txt'), // Process cwd
+          '/tmp/TAF_DEBUG_CANARY.txt',                       // Absolute tmp
+          'TAF_DEBUG_CANARY.txt'                              // Current directory
+        ];
+
+        let writeSuccess = false;
+        for (const loc of locations) {
+          try {
+            fs.writeFileSync(loc, canaryContent);
+            writeSuccess = true;
+          } catch (e) {
+            // Try next location
+          }
+        }
+
+        if (!writeSuccess) {
+          throw new Error('CRITICAL: Failed to write canary to ANY location!');
+        }
       } catch (fsError: any) {
         // If we can't write to disk, we are truly doomed
         throw new Error(`CRITICAL: Failed to write canary file: ${fsError.message}`);
