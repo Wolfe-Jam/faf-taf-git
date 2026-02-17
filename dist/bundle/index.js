@@ -1,610 +1,5 @@
-/******/ (() => { // webpackBootstrap
+require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
-
-/***/ 4459:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-/**
- * faf-taf-git - Standalone CLI for TAF operations
- *
- * Platform-agnostic core that works in ANY CI/CD environment
- * Can be used standalone or as a library by wrappers
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runTafGit = runTafGit;
-const child_process_1 = __nccwpck_require__(5317);
-const util_1 = __nccwpck_require__(9023);
-const fs = __importStar(__nccwpck_require__(9896));
-const path = __importStar(__nccwpck_require__(6928));
-const jest_1 = __nccwpck_require__(3250);
-const taf_core_1 = __nccwpck_require__(5132);
-const exec = (0, util_1.promisify)(child_process_1.exec);
-/**
- * Main CLI function - platform-agnostic
- * Can be called from GitHub Actions, GitLab CI, or standalone
- */
-async function runTafGit(options = {}) {
-    const { command = 'npm test', autoCommit = false, commitMessage = 'chore: update .taf with test results', cwd = process.cwd(), verbose = false, } = options;
-    try {
-        if (verbose)
-            console.log(`Running test command: ${command}`);
-        // Run tests and capture output
-        let output = '';
-        let exitCode = 0;
-        try {
-            const result = await exec(command, { cwd });
-            output = result.stdout + result.stderr;
-        }
-        catch (error) {
-            // Tests might fail but we still want to capture output
-            output = error.stdout + error.stderr;
-            exitCode = error.code || 1;
-        }
-        if (verbose)
-            console.log(`Test command exit code: ${exitCode}`);
-        // Parse test output
-        const testResults = (0, jest_1.parseJestOutput)(output);
-        if (!testResults) {
-            return {
-                success: false,
-                tafUpdated: false,
-                error: 'Could not parse test output. Ensure you are using Jest.',
-            };
-        }
-        if (verbose) {
-            console.log(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
-        }
-        // Check if .taf file exists
-        const tafPath = path.join(cwd, '.taf');
-        if (!fs.existsSync(tafPath)) {
-            return {
-                success: false,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: false,
-                error: 'No .taf file found. Run `faf taf init` to create one.',
-            };
-        }
-        // Update .taf file
-        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
-        if (updated) {
-            if (verbose)
-                console.log('✅ .taf file updated successfully');
-            // Commit changes if enabled
-            if (autoCommit) {
-                await commitTafUpdate(cwd, commitMessage, verbose);
-                if (verbose)
-                    console.log('✅ Changes committed to git');
-            }
-            return {
-                success: true,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: true,
-            };
-        }
-        else {
-            return {
-                success: false,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: false,
-                error: '.taf file was not updated',
-            };
-        }
-    }
-    catch (error) {
-        return {
-            success: false,
-            tafUpdated: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-}
-/**
- * Commit .taf file changes to git (platform-agnostic)
- */
-async function commitTafUpdate(cwd, message, verbose) {
-    try {
-        // Configure git if needed
-        await exec('git config --global user.name "faf-taf-git[bot]"', { cwd });
-        await exec('git config --global user.email "faf-taf-git[bot]@users.noreply.github.com"', { cwd });
-        // Stage .taf file
-        await exec('git add .taf', { cwd });
-        // Check if there are changes to commit
-        const { stdout } = await exec('git diff --cached --name-only', { cwd });
-        if (stdout.trim().length > 0) {
-            await exec(`git commit -m "${message}"`, { cwd });
-            // Try to push (might fail in some environments, that's ok)
-            try {
-                await exec('git push', { cwd });
-            }
-            catch (error) {
-                if (verbose) {
-                    console.log('Could not push changes (this is ok in some CI environments)');
-                }
-            }
-        }
-        else {
-            if (verbose)
-                console.log('No changes to commit');
-        }
-    }
-    catch (error) {
-        if (verbose) {
-            console.error('Error committing changes:', error);
-        }
-        throw error;
-    }
-}
-/**
- * CLI entry point - parse args and run
- */
-async function main() {
-    const args = process.argv.slice(2);
-    const options = {
-        verbose: args.includes('--verbose') || args.includes('-v'),
-    };
-    // Parse command flag
-    const commandIndex = args.indexOf('--command');
-    if (commandIndex !== -1 && args[commandIndex + 1]) {
-        options.command = args[commandIndex + 1];
-    }
-    // Parse auto-commit flag
-    if (args.includes('--commit')) {
-        options.autoCommit = true;
-    }
-    // Parse commit message
-    const messageIndex = args.indexOf('--message');
-    if (messageIndex !== -1 && args[messageIndex + 1]) {
-        options.commitMessage = args[messageIndex + 1];
-    }
-    // Parse working directory
-    const cwdIndex = args.indexOf('--cwd');
-    if (cwdIndex !== -1 && args[cwdIndex + 1]) {
-        options.cwd = args[cwdIndex + 1];
-    }
-    // Show help
-    if (args.includes('--help') || args.includes('-h')) {
-        console.log(`
-faf-taf-git - Platform-agnostic TAF updater
-
-USAGE:
-  npx faf-taf-git [OPTIONS]
-
-OPTIONS:
-  --command <cmd>     Test command to run (default: npm test)
-  --commit            Auto-commit .taf changes to git
-  --message <msg>     Custom commit message
-  --cwd <dir>         Working directory (default: current)
-  --verbose, -v       Verbose output
-  --help, -h          Show this help
-
-EXAMPLES:
-  # Run tests and update .taf
-  npx faf-taf-git
-
-  # Custom test command
-  npx faf-taf-git --command "npm run test:unit"
-
-  # Auto-commit changes
-  npx faf-taf-git --commit
-
-  # Custom commit message
-  npx faf-taf-git --commit --message "test: update TAF"
-
-  # Verbose mode
-  npx faf-taf-git --verbose
-
-PLATFORM SUPPORT:
-  ✅ GitHub Actions
-  ✅ GitLab CI
-  ✅ Bitbucket Pipelines
-  ✅ Jenkins
-  ✅ CircleCI
-  ✅ Local development
-  ✅ Any CI/CD that runs Node.js
-
-LEARN MORE:
-  https://github.com/Wolfe-Jam/faf-taf-git
-`);
-        process.exit(0);
-    }
-    // Run the tool
-    const result = await runTafGit(options);
-    if (result.success) {
-        if (result.testResults) {
-            console.log(`✅ Tests: ${result.testResults.passed}/${result.testResults.total} passing`);
-            console.log(`✅ Result: ${result.testResults.result}`);
-        }
-        if (result.tafUpdated) {
-            console.log('✅ .taf file updated');
-        }
-        process.exit(0);
-    }
-    else {
-        console.error(`❌ Error: ${result.error}`);
-        if (result.testResults) {
-            console.log(`Tests: ${result.testResults.passed}/${result.testResults.total} passing`);
-        }
-        process.exit(1);
-    }
-}
-// Run CLI if called directly
-if (false) {}
-//# sourceMappingURL=cli.js.map
-
-/***/ }),
-
-/***/ 137:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-/**
- * faf-taf-git - GitHub Actions wrapper
- *
- * Thin wrapper around the platform-agnostic CLI core
- * Handles GitHub Actions-specific inputs/outputs
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(7484));
-const cli_1 = __nccwpck_require__(4459);
-async function run() {
-    try {
-        // Get GitHub Action inputs
-        const testCommand = core.getInput('test-command') || 'npm test';
-        const autoCommit = core.getInput('auto-commit') !== 'false';
-        const commitMessage = core.getInput('commit-message') || 'chore: update .taf with test results';
-        core.info(`Running test command: ${testCommand}`);
-        // Call the platform-agnostic core
-        const result = await (0, cli_1.runTafGit)({
-            command: testCommand,
-            autoCommit,
-            commitMessage,
-            verbose: true,
-        });
-        // Set GitHub Action outputs
-        if (result.testResults) {
-            core.setOutput('result', result.testResults.result);
-            core.setOutput('passed', result.testResults.passed.toString());
-            core.setOutput('failed', result.testResults.failed.toString());
-            core.setOutput('total', result.testResults.total.toString());
-            core.info(`Parsed results: ${result.testResults.passed}/${result.testResults.total} tests passing`);
-        }
-        core.setOutput('taf-updated', result.tafUpdated ? 'true' : 'false');
-        if (result.success) {
-            core.info('✅ .taf file updated successfully');
-            if (autoCommit) {
-                core.info('✅ Changes committed to git');
-            }
-        }
-        else {
-            core.setFailed(result.error || 'Unknown error occurred');
-        }
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            core.setFailed(error.message);
-        }
-        else {
-            core.setFailed('Unknown error occurred');
-        }
-    }
-}
-// Run the GitHub Action
-run();
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 3250:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/**
- * Jest output parser
- *
- * Extracts test counts from Jest CLI output
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseJestOutput = parseJestOutput;
-/**
- * Parse Jest output to extract test results
- *
- * Jest output formats:
- * - "Tests: 1 failed, 172 passed, 173 total"
- * - "Tests: 173 passed, 173 total"
- * - "Test Suites: 2 failed, 16 passed, 18 total"
- */
-function parseJestOutput(output) {
-    // Look for the test summary line
-    const testLineMatch = output.match(/Tests:\s+(.+)/);
-    if (!testLineMatch) {
-        return null;
-    }
-    const testLine = testLineMatch[1];
-    // Extract counts
-    let total = 0;
-    let passed = 0;
-    let failed = 0;
-    let skipped = 0;
-    // Parse "173 total"
-    const totalMatch = testLine.match(/(\d+)\s+total/);
-    if (totalMatch) {
-        total = parseInt(totalMatch[1], 10);
-    }
-    // Parse "172 passed"
-    const passedMatch = testLine.match(/(\d+)\s+passed/);
-    if (passedMatch) {
-        passed = parseInt(passedMatch[1], 10);
-    }
-    // Parse "1 failed"
-    const failedMatch = testLine.match(/(\d+)\s+failed/);
-    if (failedMatch) {
-        failed = parseInt(failedMatch[1], 10);
-    }
-    // Parse "5 skipped"
-    const skippedMatch = testLine.match(/(\d+)\s+skipped/);
-    if (skippedMatch) {
-        skipped = parseInt(skippedMatch[1], 10);
-    }
-    // Validate
-    if (total === 0) {
-        return null;
-    }
-    // Determine result (simple for now, no history comparison)
-    let result = 'PASSED';
-    if (failed > 0) {
-        result = 'FAILED';
-    }
-    return {
-        total,
-        passed,
-        failed,
-        skipped: skipped > 0 ? skipped : undefined,
-        result,
-    };
-}
-/**
- * Example Jest outputs for testing:
- *
- * All passing:
- * "Tests: 173 passed, 173 total"
- *
- * Some failing:
- * "Tests: 1 failed, 172 passed, 173 total"
- *
- * With skipped:
- * "Tests: 1 failed, 2 skipped, 170 passed, 173 total"
- */
-//# sourceMappingURL=jest.js.map
-
-/***/ }),
-
-/***/ 5132:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-/**
- * TAF Core - Simplified for GitHub Action
- *
- * Pure functions for reading, parsing, and updating .taf files
- * Derived from faf-cli TAF implementation (MCP-portable)
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.updateTafFile = updateTafFile;
-const fs = __importStar(__nccwpck_require__(9896));
-const yaml = __importStar(__nccwpck_require__(8815));
-/**
- * Update .taf file with new test results
- * Creates the file if it doesn't exist
- */
-function updateTafFile(tafPath, testResults) {
-    try {
-        let taf;
-        // Check if .taf exists, create if not
-        if (fs.existsSync(tafPath)) {
-            const content = fs.readFileSync(tafPath, 'utf-8');
-            taf = parseTAF(content);
-        }
-        else {
-            // Create new .taf file
-            const projectName = (__nccwpck_require__(6928).basename)((__nccwpck_require__(6928).dirname)(tafPath));
-            taf = createTAF(projectName);
-        }
-        // Create test run entry
-        const run = {
-            timestamp: new Date().toISOString(),
-            result: testResults.result,
-            tests: {
-                total: testResults.total,
-                passed: testResults.passed,
-                failed: testResults.failed,
-                skipped: testResults.skipped,
-            },
-            trigger: 'github-actions',
-        };
-        // Append to history
-        taf.test_history.push(run);
-        // Serialize and write back
-        const updated = serializeTAF(taf);
-        fs.writeFileSync(tafPath, updated, 'utf-8');
-        return true;
-    }
-    catch (error) {
-        console.error('Failed to update .taf file:', error);
-        return false;
-    }
-}
-/**
- * Create a new TAF file structure
- */
-function createTAF(projectName) {
-    return {
-        format_version: '1.0.0',
-        project: projectName,
-        created: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-        test_history: [],
-    };
-}
-/**
- * Parse .taf file content
- */
-function parseTAF(content) {
-    // Split on document separator and take only first document
-    const lines = content.split('\n');
-    const yamlLines = [];
-    for (const line of lines) {
-        // Stop at document separator (but skip initial one if present)
-        if (line.trim() === '---' && yamlLines.length > 0) {
-            break;
-        }
-        // Skip initial document separator
-        if (line.trim() === '---' && yamlLines.length === 0) {
-            continue;
-        }
-        yamlLines.push(line);
-    }
-    const parsed = yaml.parse(yamlLines.join('\n'));
-    // Basic validation
-    if (!parsed || typeof parsed !== 'object') {
-        throw new Error('Invalid .taf file: not a valid YAML object');
-    }
-    if (!parsed.test_history || !Array.isArray(parsed.test_history)) {
-        throw new Error('Invalid .taf file: missing or invalid test_history');
-    }
-    return parsed;
-}
-/**
- * Serialize TAF object back to YAML
- * Uses yaml library to maintain existing format
- */
-function serializeTAF(taf) {
-    // Update last_updated timestamp
-    taf.last_updated = new Date().toISOString();
-    // Use yaml.stringify to preserve format
-    return yaml.stringify(taf);
-}
-//# sourceMappingURL=taf-core.js.map
-
-/***/ }),
 
 /***/ 4914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
@@ -26248,6 +25643,391 @@ module.exports = {
 
 /***/ }),
 
+/***/ 9407:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * faf-taf-git v2.0.0 - GitHub Actions wrapper
+ *
+ * Pre-Capture Pattern: Reads test output from file (written by previous step)
+ * Handles GitHub Actions-specific inputs/outputs
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(7484));
+const exec = __importStar(__nccwpck_require__(5236));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const jest_1 = __nccwpck_require__(3416);
+const taf_core_1 = __nccwpck_require__(390);
+/**
+ * Commit .taf file changes to git
+ */
+async function commitTafUpdate(cwd, message) {
+    const execOptions = { cwd };
+    // Configure git
+    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+    // Stage .taf file
+    await exec.exec('git', ['add', '.taf'], execOptions);
+    // Check if there are changes to commit
+    const { exitCode } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+    if (exitCode === 0) {
+        await exec.exec('git', ['commit', '-m', message], execOptions);
+        // Try to push (might fail in some environments, that's ok)
+        try {
+            await exec.exec('git', ['push'], execOptions);
+        }
+        catch (error) {
+            core.warning('Could not push changes (this is ok in some CI environments)');
+        }
+    }
+}
+async function run() {
+    try {
+        // Get GitHub Action inputs
+        const testOutputFile = core.getInput('test-output-file', { required: true });
+        const autoCommit = core.getInput('auto-commit') !== 'false';
+        const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
+        const cwd = process.cwd();
+        core.info(`Reading test output from: ${testOutputFile}`);
+        // Read test output file (written by previous CI step)
+        const testOutputPath = path.isAbsolute(testOutputFile)
+            ? testOutputFile
+            : path.join(cwd, testOutputFile);
+        if (!fs.existsSync(testOutputPath)) {
+            core.setFailed(`Test output file not found: ${testOutputPath}`);
+            return;
+        }
+        const testOutput = fs.readFileSync(testOutputPath, 'utf-8');
+        core.info(`Read ${testOutput.length} bytes from test output file`);
+        // Parse test results
+        const testResults = (0, jest_1.parseJestOutput)(testOutput);
+        if (!testResults) {
+            core.setFailed('Could not parse test output. Ensure you are using Jest.');
+            return;
+        }
+        core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
+        // Set GitHub Action outputs
+        core.setOutput('result', testResults.result);
+        core.setOutput('passed', testResults.passed.toString());
+        core.setOutput('failed', testResults.failed.toString());
+        core.setOutput('total', testResults.total.toString());
+        // Check if .taf file exists
+        const tafPath = path.join(cwd, '.taf');
+        if (!fs.existsSync(tafPath)) {
+            core.setFailed('No .taf file found. Run `faf taf init` to create one.');
+            return;
+        }
+        // Update .taf file
+        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
+        if (!updated) {
+            core.setOutput('taf-updated', 'false');
+            core.setFailed('.taf file was not updated');
+            return;
+        }
+        core.setOutput('taf-updated', 'true');
+        core.info('✅ .taf file updated successfully');
+        // Commit changes if enabled
+        if (autoCommit) {
+            await commitTafUpdate(cwd, commitMessage);
+            core.info('✅ Changes committed to git');
+        }
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            core.setFailed(error.message);
+        }
+        else {
+            core.setFailed('Unknown error occurred');
+        }
+    }
+}
+// Run the GitHub Action
+run();
+
+
+/***/ }),
+
+/***/ 3416:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Jest output parser
+ *
+ * Extracts test counts from Jest CLI output
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseJestOutput = parseJestOutput;
+/**
+ * Parse Jest output to extract test results
+ *
+ * Jest output formats:
+ * - "Tests: 1 failed, 172 passed, 173 total"
+ * - "Tests: 173 passed, 173 total"
+ * - "Test Suites: 2 failed, 16 passed, 18 total"
+ * - "Tests:       9 skipped, 799 passed, 808 total" (with padding)
+ */
+function parseJestOutput(output) {
+    // Strip ANSI color codes and other control characters
+    // eslint-disable-next-line no-control-regex
+    let cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+    // Also strip carriage returns and normalize line endings
+    cleanOutput = cleanOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Try multiple patterns to find the test summary
+    // Pattern 1: Standard "Tests:" line
+    let testLineMatch = cleanOutput.match(/Tests:\s*(.+?)(?:\n|$)/im);
+    // Pattern 2: Try to find numbers with "total" keyword anywhere in output
+    if (!testLineMatch) {
+        const totalPattern = /(\d+)\s+(?:skipped|passed|failed).*?(\d+)\s+total/im;
+        const match = cleanOutput.match(totalPattern);
+        if (match) {
+            // Found a line with total, use that
+            const fullLine = cleanOutput.substring(Math.max(0, match.index - 100), Math.min(cleanOutput.length, (match.index || 0) + match[0].length + 20));
+            testLineMatch = fullLine.match(/Tests?:?\s*(.+?)(?:\n|$)/im);
+        }
+    }
+    if (!testLineMatch || !testLineMatch[1]) {
+        return null;
+    }
+    const testLine = testLineMatch[1];
+    // Extract counts using flexible patterns
+    let total = 0;
+    let passed = 0;
+    let failed = 0;
+    let skipped = 0;
+    // Parse numbers - use global search on the whole output near the Tests: line
+    const totalMatch = testLine.match(/(\d+)\s+total/i);
+    if (totalMatch) {
+        total = parseInt(totalMatch[1], 10);
+    }
+    const passedMatch = testLine.match(/(\d+)\s+passed/i);
+    if (passedMatch) {
+        passed = parseInt(passedMatch[1], 10);
+    }
+    const failedMatch = testLine.match(/(\d+)\s+failed/i);
+    if (failedMatch) {
+        failed = parseInt(failedMatch[1], 10);
+    }
+    const skippedMatch = testLine.match(/(\d+)\s+skipped/i);
+    if (skippedMatch) {
+        skipped = parseInt(skippedMatch[1], 10);
+    }
+    // Validate
+    if (total === 0) {
+        return null;
+    }
+    // Determine result
+    let result = 'PASSED';
+    if (failed > 0) {
+        result = 'FAILED';
+    }
+    return {
+        total,
+        passed,
+        failed,
+        skipped: skipped > 0 ? skipped : undefined,
+        result,
+    };
+}
+/**
+ * Example Jest outputs for testing:
+ *
+ * All passing:
+ * "Tests: 173 passed, 173 total"
+ *
+ * Some failing:
+ * "Tests: 1 failed, 172 passed, 173 total"
+ *
+ * With skipped:
+ * "Tests: 1 failed, 2 skipped, 170 passed, 173 total"
+ *
+ * With padding (CI):
+ * "Tests:       9 skipped, 799 passed, 808 total"
+ */
+
+
+/***/ }),
+
+/***/ 390:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * TAF Core - Simplified for GitHub Action
+ *
+ * Pure functions for reading, parsing, and updating .taf files
+ * Derived from faf-cli TAF implementation (MCP-portable)
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.updateTafFile = updateTafFile;
+const fs = __importStar(__nccwpck_require__(9896));
+const yaml = __importStar(__nccwpck_require__(8815));
+/**
+ * Update .taf file with new test results
+ * Creates the file if it doesn't exist
+ */
+function updateTafFile(tafPath, testResults) {
+    try {
+        let taf;
+        // Check if .taf exists, create if not
+        if (fs.existsSync(tafPath)) {
+            const content = fs.readFileSync(tafPath, 'utf-8');
+            taf = parseTAF(content);
+        }
+        else {
+            // Create new .taf file
+            const projectName = (__nccwpck_require__(6928).basename)((__nccwpck_require__(6928).dirname)(tafPath));
+            taf = createTAF(projectName);
+        }
+        // Create test run entry
+        const run = {
+            timestamp: new Date().toISOString(),
+            result: testResults.result,
+            tests: {
+                total: testResults.total,
+                passed: testResults.passed,
+                failed: testResults.failed,
+                skipped: testResults.skipped,
+            },
+            trigger: 'github-actions',
+        };
+        // Append to history
+        taf.test_history.push(run);
+        // Serialize and write back
+        const updated = serializeTAF(taf);
+        fs.writeFileSync(tafPath, updated, 'utf-8');
+        return true;
+    }
+    catch (error) {
+        console.error('Failed to update .taf file:', error);
+        return false;
+    }
+}
+/**
+ * Create a new TAF file structure
+ */
+function createTAF(projectName) {
+    return {
+        format_version: '1.0.0',
+        project: projectName,
+        created: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+        test_history: [],
+    };
+}
+/**
+ * Parse .taf file content
+ */
+function parseTAF(content) {
+    // Split on document separator and take only first document
+    const lines = content.split('\n');
+    const yamlLines = [];
+    for (const line of lines) {
+        // Stop at document separator (but skip initial one if present)
+        if (line.trim() === '---' && yamlLines.length > 0) {
+            break;
+        }
+        // Skip initial document separator
+        if (line.trim() === '---' && yamlLines.length === 0) {
+            continue;
+        }
+        yamlLines.push(line);
+    }
+    const parsed = yaml.parse(yamlLines.join('\n'));
+    // Basic validation
+    if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Invalid .taf file: not a valid YAML object');
+    }
+    if (!parsed.test_history || !Array.isArray(parsed.test_history)) {
+        throw new Error('Invalid .taf file: missing or invalid test_history');
+    }
+    return parsed;
+}
+/**
+ * Serialize TAF object back to YAML
+ * Uses yaml library to maintain existing format
+ */
+function serializeTAF(taf) {
+    // Update last_updated timestamp
+    taf.last_updated = new Date().toISOString();
+    // Use yaml.stringify to preserve format
+    return yaml.stringify(taf);
+}
+
+
+/***/ }),
+
 /***/ 2613:
 /***/ ((module) => {
 
@@ -36766,8 +36546,9 @@ exports.visitAsync = visitAsync;
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(137);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(9407);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()
 ;
+//# sourceMappingURL=index.js.map
