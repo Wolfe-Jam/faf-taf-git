@@ -8,6 +8,7 @@
 
 import * as exec from '@actions/exec';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { parseJestOutput } from './parsers/jest';
 import { updateTafFile } from './taf-core';
@@ -97,7 +98,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
         const locations = [
           path.join(cwd, 'TAF_DEBUG_CANARY.txt'),           // Original cwd
           path.join(process.cwd(), 'TAF_DEBUG_CANARY.txt'), // Process cwd
-          '/tmp/TAF_DEBUG_CANARY.txt',                       // Absolute tmp
+          path.join(os.tmpdir(), 'TAF_DEBUG_CANARY.txt'),   // OS temp directory
           'TAF_DEBUG_CANARY.txt'                              // Current directory
         ];
 
@@ -135,8 +136,9 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     if (verbose) {
       try {
         const fs = require('fs');
-        fs.writeFileSync('/tmp/taf-debug-output.txt', output);
-        logger(`DEBUG: Wrote ${output.length} bytes to /tmp/taf-debug-output.txt`);
+        const debugPath = path.join(os.tmpdir(), 'taf-debug-output.txt');
+        fs.writeFileSync(debugPath, output);
+        logger(`DEBUG: Wrote ${output.length} bytes to ${debugPath}`);
         const lines = output.split('\n');
         const testLine = lines.find(l => l.includes('Tests:'));
         logger(`DEBUG: Output has ${lines.length} lines, Found "Tests:": ${testLine ? 'YES' : 'NO'}`);
