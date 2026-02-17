@@ -25689,13 +25689,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.runTafGit = runTafGit;
-const child_process_1 = __nccwpck_require__(5317);
-const util_1 = __nccwpck_require__(9023);
+const exec = __importStar(__nccwpck_require__(5236));
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const jest_1 = __nccwpck_require__(3416);
 const taf_core_1 = __nccwpck_require__(390);
-const exec = (0, util_1.promisify)(child_process_1.exec);
 /**
  * Main CLI function - platform-agnostic
  * Can be called from GitHub Actions, GitLab CI, or standalone
@@ -25705,28 +25703,34 @@ async function runTafGit(options = {}) {
     try {
         if (verbose)
             console.log(`Running test command: ${command}`);
-        // Run tests and capture output
+        // Run tests and capture output using @actions/exec
         let output = '';
         let exitCode = 0;
         try {
-            const result = await exec(command, { cwd });
-            output = result.stdout + result.stderr;
+            const options = {
+                cwd,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    },
+                    stderr: (data) => {
+                        output += data.toString();
+                    }
+                }
+            };
+            exitCode = await exec.exec(command, [], options);
+            if (verbose) {
+                logger(`Test command exit code: ${exitCode}`);
+                logger(`Captured output length: ${output.length} bytes`);
+            }
         }
         catch (error) {
-            // Tests might fail but we still want to capture output
-            output = error.stdout + error.stderr;
-            exitCode = error.code || 1;
+            exitCode = 1;
+            if (verbose) {
+                logger(`Test command failed with error: ${error.message}`);
+                logger(`Captured output length: ${output.length} bytes`);
+            }
         }
-        if (verbose) {
-            logger(`Test command exit code: ${exitCode}`);
-        }
-        // CRITICAL: Use console.error to ensure this shows in GitHub Actions
-        console.error(`=== TAF DEBUG START ===`);
-        console.error(`Output length: ${output.length} bytes`);
-        console.error(`Output type: ${typeof output}`);
-        console.error(`First 200 chars: ${output.substring(0, 200)}`);
-        console.error(`Last 200 chars: ${output.substring(Math.max(0, output.length - 200))}`);
-        console.error(`=== TAF DEBUG END ===`);
         // Debug: Write entire output to file for inspection
         if (verbose) {
             try {
@@ -25831,18 +25835,28 @@ async function runTafGit(options = {}) {
  */
 async function commitTafUpdate(cwd, message, verbose, logger = console.log) {
     try {
+        const execOptions = { cwd };
         // Configure git if needed
-        await exec('git config --global user.name "faf-taf-git[bot]"', { cwd });
-        await exec('git config --global user.email "faf-taf-git[bot]@users.noreply.github.com"', { cwd });
+        await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+        await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
         // Stage .taf file
-        await exec('git add .taf', { cwd });
+        await exec.exec('git', ['add', '.taf'], execOptions);
         // Check if there are changes to commit
-        const { stdout } = await exec('git diff --cached --name-only', { cwd });
-        if (stdout.trim().length > 0) {
-            await exec(`git commit -m "${message}"`, { cwd });
+        let diffOutput = '';
+        const diffOptions = {
+            cwd,
+            listeners: {
+                stdout: (data) => {
+                    diffOutput += data.toString();
+                }
+            }
+        };
+        await exec.exec('git', ['diff', '--cached', '--name-only'], diffOptions);
+        if (diffOutput.trim().length > 0) {
+            await exec.exec('git', ['commit', '-m', message], execOptions);
             // Try to push (might fail in some environments, that's ok)
             try {
-                await exec('git push', { cwd });
+                await exec.exec('git', ['push'], execOptions);
             }
             catch (error) {
                 if (verbose) {

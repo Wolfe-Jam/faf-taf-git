@@ -6,14 +6,11 @@
  * Can be used standalone or as a library by wrappers
  */
 
-import { exec as execCallback } from 'child_process';
-import { promisify } from 'util';
+import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseJestOutput } from './parsers/jest';
 import { updateTafFile } from './taf-core';
-
-const exec = promisify(execCallback);
 
 export interface CLIOptions {
   command?: string;
@@ -53,30 +50,36 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
   try {
     if (verbose) console.log(`Running test command: ${command}`);
 
-    // Run tests and capture output
+    // Run tests and capture output using @actions/exec
     let output = '';
     let exitCode = 0;
 
     try {
-      const result = await exec(command, { cwd });
-      output = result.stdout + result.stderr;
+      const options: exec.ExecOptions = {
+        cwd,
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString();
+          },
+          stderr: (data: Buffer) => {
+            output += data.toString();
+          }
+        }
+      };
+
+      exitCode = await exec.exec(command, [], options);
+
+      if (verbose) {
+        logger(`Test command exit code: ${exitCode}`);
+        logger(`Captured output length: ${output.length} bytes`);
+      }
     } catch (error: any) {
-      // Tests might fail but we still want to capture output
-      output = error.stdout + error.stderr;
-      exitCode = error.code || 1;
+      exitCode = 1;
+      if (verbose) {
+        logger(`Test command failed with error: ${error.message}`);
+        logger(`Captured output length: ${output.length} bytes`);
+      }
     }
-
-    if (verbose) {
-      logger(`Test command exit code: ${exitCode}`);
-    }
-
-    // CRITICAL: Use console.error to ensure this shows in GitHub Actions
-    console.error(`=== TAF DEBUG START ===`);
-    console.error(`Output length: ${output.length} bytes`);
-    console.error(`Output type: ${typeof output}`);
-    console.error(`First 200 chars: ${output.substring(0, 200)}`);
-    console.error(`Last 200 chars: ${output.substring(Math.max(0, output.length - 200))}`);
-    console.error(`=== TAF DEBUG END ===`);
 
     // Debug: Write entire output to file for inspection
     if (verbose) {
@@ -185,22 +188,33 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
  */
 async function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger: (msg: string) => void = console.log): Promise<void> {
   try {
+    const execOptions: exec.ExecOptions = { cwd };
+
     // Configure git if needed
-    await exec('git config --global user.name "faf-taf-git[bot]"', { cwd });
-    await exec('git config --global user.email "faf-taf-git[bot]@users.noreply.github.com"', { cwd });
+    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
 
     // Stage .taf file
-    await exec('git add .taf', { cwd });
+    await exec.exec('git', ['add', '.taf'], execOptions);
 
     // Check if there are changes to commit
-    const { stdout } = await exec('git diff --cached --name-only', { cwd });
+    let diffOutput = '';
+    const diffOptions: exec.ExecOptions = {
+      cwd,
+      listeners: {
+        stdout: (data: Buffer) => {
+          diffOutput += data.toString();
+        }
+      }
+    };
+    await exec.exec('git', ['diff', '--cached', '--name-only'], diffOptions);
 
-    if (stdout.trim().length > 0) {
-      await exec(`git commit -m "${message}"`, { cwd });
+    if (diffOutput.trim().length > 0) {
+      await exec.exec('git', ['commit', '-m', message], execOptions);
 
       // Try to push (might fail in some environments, that's ok)
       try {
-        await exec('git push', { cwd });
+        await exec.exec('git', ['push'], execOptions);
       } catch (error) {
         if (verbose) {
           logger('Could not push changes (this is ok in some CI environments)');
