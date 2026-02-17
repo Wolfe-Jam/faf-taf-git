@@ -25735,6 +25735,20 @@ async function run() {
         }
         const testOutput = fs.readFileSync(testOutputPath, 'utf-8');
         core.info(`Read ${testOutput.length} bytes from test output file`);
+        // Debug: Show sample of what we're parsing
+        const lines = testOutput.split('\n');
+        const testSummaryLine = lines.find(line => line.includes('Tests:'));
+        if (testSummaryLine) {
+            core.info(`Found summary line: ${testSummaryLine.substring(0, 200)}`);
+        }
+        else {
+            core.warning('No "Tests:" summary line found in output');
+            // Show last 20 lines to help debug
+            core.info('Last 20 lines of output:');
+            lines.slice(-20).forEach((line, i) => {
+                core.info(`  ${i}: ${line.substring(0, 150)}`);
+            });
+        }
         // Parse test results
         const testResults = (0, jest_1.parseJestOutput)(testOutput);
         if (!testResults) {

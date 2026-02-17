@@ -1,6 +1,6 @@
 {
   "name": "faf-taf-git",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD",
   "main": "dist/cli.js",
   "bin": {
