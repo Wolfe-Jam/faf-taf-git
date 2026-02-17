@@ -17,6 +17,7 @@ export interface TestResults {
  * - "Tests: 1 failed, 172 passed, 173 total"
  * - "Tests: 173 passed, 173 total"
  * - "Test Suites: 2 failed, 16 passed, 18 total"
+ * - "Tests:       9 skipped, 799 passed, 808 total" (with padding)
  */
 export declare function parseJestOutput(output: string): TestResults | null;
 /**
@@ -30,5 +31,8 @@ export declare function parseJestOutput(output: string): TestResults | null;
  *
  * With skipped:
  * "Tests: 1 failed, 2 skipped, 170 passed, 173 total"
+ *
+ * With padding (CI):
+ * "Tests:       9 skipped, 799 passed, 808 total"
  */
 //# sourceMappingURL=jest.d.ts.map

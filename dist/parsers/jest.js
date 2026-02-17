@@ -13,38 +13,49 @@ exports.parseJestOutput = parseJestOutput;
  * - "Tests: 1 failed, 172 passed, 173 total"
  * - "Tests: 173 passed, 173 total"
  * - "Test Suites: 2 failed, 16 passed, 18 total"
+ * - "Tests:       9 skipped, 799 passed, 808 total" (with padding)
  */
 function parseJestOutput(output) {
-    // Strip ANSI color codes (common in CI environments)
+    // Strip ANSI color codes and other control characters
     // eslint-disable-next-line no-control-regex
-    const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
-    // Look for the test summary line
-    const testLineMatch = cleanOutput.match(/Tests:\s+(.+)/);
+    let cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+    // Also strip carriage returns and normalize line endings
+    cleanOutput = cleanOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Try multiple patterns to find the test summary
+    // Pattern 1: Standard "Tests:" line
+    let testLineMatch = cleanOutput.match(/Tests:\s*(.+?)(?:\n|$)/im);
+    // Pattern 2: Try to find numbers with "total" keyword anywhere in output
     if (!testLineMatch) {
+        const totalPattern = /(\d+)\s+(?:skipped|passed|failed).*?(\d+)\s+total/im;
+        const match = cleanOutput.match(totalPattern);
+        if (match) {
+            // Found a line with total, use that
+            const fullLine = cleanOutput.substring(Math.max(0, match.index - 100), Math.min(cleanOutput.length, (match.index || 0) + match[0].length + 20));
+            testLineMatch = fullLine.match(/Tests?:?\s*(.+?)(?:\n|$)/im);
+        }
+    }
+    if (!testLineMatch || !testLineMatch[1]) {
         return null;
     }
     const testLine = testLineMatch[1];
-    // Extract counts
+    // Extract counts using flexible patterns
     let total = 0;
     let passed = 0;
     let failed = 0;
     let skipped = 0;
-    // Parse "173 total" (handles multiple spaces)
+    // Parse numbers - use global search on the whole output near the Tests: line
     const totalMatch = testLine.match(/(\d+)\s+total/i);
     if (totalMatch) {
         total = parseInt(totalMatch[1], 10);
     }
-    // Parse "172 passed" (handles multiple spaces)
     const passedMatch = testLine.match(/(\d+)\s+passed/i);
     if (passedMatch) {
         passed = parseInt(passedMatch[1], 10);
     }
-    // Parse "1 failed" (handles multiple spaces)
     const failedMatch = testLine.match(/(\d+)\s+failed/i);
     if (failedMatch) {
         failed = parseInt(failedMatch[1], 10);
     }
-    // Parse "5 skipped" (handles multiple spaces)
     const skippedMatch = testLine.match(/(\d+)\s+skipped/i);
     if (skippedMatch) {
         skipped = parseInt(skippedMatch[1], 10);
@@ -53,7 +64,7 @@ function parseJestOutput(output) {
     if (total === 0) {
         return null;
     }
-    // Determine result (simple for now, no history comparison)
+    // Determine result
     let result = 'PASSED';
     if (failed > 0) {
         result = 'FAILED';
@@ -77,5 +88,8 @@ function parseJestOutput(output) {
  *
  * With skipped:
  * "Tests: 1 failed, 2 skipped, 170 passed, 173 total"
+ *
+ * With padding (CI):
+ * "Tests:       9 skipped, 799 passed, 808 total"
  */
 //# sourceMappingURL=jest.js.map
