@@ -25824,19 +25824,11 @@ function parseJestOutput(output) {
     let cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
     // Also strip carriage returns and normalize line endings
     cleanOutput = cleanOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    // Try multiple patterns to find the test summary
-    // Pattern 1: Standard "Tests:" line
-    let testLineMatch = cleanOutput.match(/Tests:\s*(.+?)(?:\n|$)/im);
-    // Pattern 2: Try to find numbers with "total" keyword anywhere in output
-    if (!testLineMatch) {
-        const totalPattern = /(\d+)\s+(?:skipped|passed|failed).*?(\d+)\s+total/im;
-        const match = cleanOutput.match(totalPattern);
-        if (match) {
-            // Found a line with total, use that
-            const fullLine = cleanOutput.substring(Math.max(0, match.index - 100), Math.min(cleanOutput.length, (match.index || 0) + match[0].length + 20));
-            testLineMatch = fullLine.match(/Tests?:?\s*(.+?)(?:\n|$)/im);
-        }
-    }
+    // Find the Jest test summary line
+    // CRITICAL: Must match "Tests:" line that contains "total" to avoid matching
+    // test descriptions like "Brake Tests: Critical dogfooding scenarios"
+    const testSummaryPattern = /Tests:\s+(.+?\d+\s+total)/im;
+    const testLineMatch = cleanOutput.match(testSummaryPattern);
     if (!testLineMatch || !testLineMatch[1]) {
         return null;
     }
