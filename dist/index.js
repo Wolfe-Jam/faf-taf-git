@@ -25717,8 +25717,11 @@ async function runTafGit(options = {}) {
             output = error.stdout + error.stderr;
             exitCode = error.code || 1;
         }
-        if (verbose)
+        if (verbose) {
             logger(`Test command exit code: ${exitCode}`);
+            logger(`DEBUG: Captured output length: ${output.length} bytes`);
+            logger(`DEBUG: stdout type: ${typeof output}, is string: ${typeof output === 'string'}`);
+        }
         // Debug: Write entire output to file for inspection
         if (verbose) {
             try {
