@@ -39,4 +39,4 @@ outputs:
 
 runs:
   using: 'node20'
-  main: 'dist/bundle/index.js'
+  main: 'dist/index.js'
