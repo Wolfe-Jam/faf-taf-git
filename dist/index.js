@@ -26048,7 +26048,10 @@ async function run() {
             autoCommit,
             commitMessage,
             verbose: true,
-            logger: (msg) => core.info(msg),
+            logger: (msg) => {
+                core.info(msg);
+                console.log(`[FORCE LOG] ${msg}`);
+            },
         });
         // Set GitHub Action outputs
         if (result.testResults) {
