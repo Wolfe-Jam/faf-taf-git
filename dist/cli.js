@@ -71,21 +71,14 @@ async function runTafGit(options = {}) {
             };
             // Use getExecOutput to capture stdout/stderr
             const result = await exec.getExecOutput(executable, args, options);
-            // CRITICAL TEST: Log immediately after getExecOutput
-            logger('[CHECKPOINT 1] getExecOutput completed');
             exitCode = result.exitCode;
-            logger('[CHECKPOINT 2] exitCode assigned');
             output = result.stdout + result.stderr;
-            logger('[CHECKPOINT 3] output assigned');
-            // UNCONDITIONAL logging for debugging
-            logger(`[DEBUG] verbose=${verbose}, exitCode=${exitCode}, output.length=${output.length}`);
-            logger(`[DEBUG] output type: ${typeof output}, is string: ${typeof output === 'string'}`);
-            logger(`[DEBUG] First 100 chars: ${output.substring(0, 100)}`);
+            // Use console.error for debugging (logger function seems to fail here)
             if (verbose) {
-                logger(`Test command exit code: ${exitCode}`);
-                logger(`Captured output length: ${output.length} bytes`);
+                console.error(`[TAF DEBUG] Test command exit code: ${exitCode}`);
+                console.error(`[TAF DEBUG] Captured output length: ${output.length} bytes`);
                 if (output.length > 0) {
-                    logger(`Output preview (first 200 chars): ${output.substring(0, 200)}`);
+                    console.error(`[TAF DEBUG] Output preview (first 200 chars): ${output.substring(0, 200)}`);
                 }
             }
         }
