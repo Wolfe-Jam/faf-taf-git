@@ -72,6 +72,11 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       exitCode = result.exitCode;
       output = result.stdout + result.stderr;
 
+      // UNCONDITIONAL logging for debugging
+      logger(`[DEBUG] verbose=${verbose}, exitCode=${exitCode}, output.length=${output.length}`);
+      logger(`[DEBUG] output type: ${typeof output}, is string: ${typeof output === 'string'}`);
+      logger(`[DEBUG] First 100 chars: ${output.substring(0, 100)}`);
+
       if (verbose) {
         logger(`Test command exit code: ${exitCode}`);
         logger(`Captured output length: ${output.length} bytes`);
