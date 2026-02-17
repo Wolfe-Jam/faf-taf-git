@@ -71,9 +71,14 @@ async function runTafGit(options = {}) {
         }
         if (verbose) {
             logger(`Test command exit code: ${exitCode}`);
-            logger(`DEBUG: Captured output length: ${output.length} bytes`);
-            logger(`DEBUG: stdout type: ${typeof output}, is string: ${typeof output === 'string'}`);
         }
+        // CRITICAL: Use console.error to ensure this shows in GitHub Actions
+        console.error(`=== TAF DEBUG START ===`);
+        console.error(`Output length: ${output.length} bytes`);
+        console.error(`Output type: ${typeof output}`);
+        console.error(`First 200 chars: ${output.substring(0, 200)}`);
+        console.error(`Last 200 chars: ${output.substring(Math.max(0, output.length - 200))}`);
+        console.error(`=== TAF DEBUG END ===`);
         // Debug: Write entire output to file for inspection
         if (verbose) {
             try {
