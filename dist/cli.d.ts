@@ -10,6 +10,7 @@ export interface CLIOptions {
     commitMessage?: string;
     cwd?: string;
     verbose?: boolean;
+    logger?: (message: string) => void;
 }
 export interface CLIResult {
     success: boolean;

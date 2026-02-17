@@ -25701,7 +25701,7 @@ const exec = (0, util_1.promisify)(child_process_1.exec);
  * Can be called from GitHub Actions, GitLab CI, or standalone
  */
 async function runTafGit(options = {}) {
-    const { command = 'npm test', autoCommit = false, commitMessage = 'chore: update .taf with test results', cwd = process.cwd(), verbose = false, } = options;
+    const { command = 'npm test', autoCommit = false, commitMessage = 'chore: update .taf with test results', cwd = process.cwd(), verbose = false, logger = console.log, } = options;
     try {
         if (verbose)
             console.log(`Running test command: ${command}`);
@@ -25718,24 +25718,24 @@ async function runTafGit(options = {}) {
             exitCode = error.code || 1;
         }
         if (verbose)
-            console.log(`Test command exit code: ${exitCode}`);
+            logger(`Test command exit code: ${exitCode}`);
         // Debug: Show sample of output for troubleshooting
         if (verbose) {
             const lines = output.split('\n');
             const testLine = lines.find(l => l.includes('Tests:'));
-            console.log(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
+            logger(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
             if (testLine) {
-                console.log(`DEBUG: Tests line: "${testLine}"`);
-                console.log(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
+                logger(`DEBUG: Tests line: "${testLine}"`);
+                logger(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
             }
         }
         // Parse test output
         const testResults = (0, jest_1.parseJestOutput)(output);
         if (!testResults) {
             if (verbose) {
-                console.log(`DEBUG: Parser returned null`);
-                console.log(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
-                console.log(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
+                logger(`DEBUG: Parser returned null`);
+                logger(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
+                logger(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
             }
             return {
                 success: false,
@@ -25744,7 +25744,7 @@ async function runTafGit(options = {}) {
             };
         }
         if (verbose) {
-            console.log(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
+            logger(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
         }
         // Check if .taf file exists
         const tafPath = path.join(cwd, '.taf');
@@ -25765,12 +25765,12 @@ async function runTafGit(options = {}) {
         const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
         if (updated) {
             if (verbose)
-                console.log('✅ .taf file updated successfully');
+                logger('✅ .taf file updated successfully');
             // Commit changes if enabled
             if (autoCommit) {
-                await commitTafUpdate(cwd, commitMessage, verbose);
+                await commitTafUpdate(cwd, commitMessage, verbose, logger);
                 if (verbose)
-                    console.log('✅ Changes committed to git');
+                    logger('✅ Changes committed to git');
             }
             return {
                 success: true,
@@ -25808,7 +25808,7 @@ async function runTafGit(options = {}) {
 /**
  * Commit .taf file changes to git (platform-agnostic)
  */
-async function commitTafUpdate(cwd, message, verbose) {
+async function commitTafUpdate(cwd, message, verbose, logger = console.log) {
     try {
         // Configure git if needed
         await exec('git config --global user.name "faf-taf-git[bot]"', { cwd });
@@ -25825,18 +25825,18 @@ async function commitTafUpdate(cwd, message, verbose) {
             }
             catch (error) {
                 if (verbose) {
-                    console.log('Could not push changes (this is ok in some CI environments)');
+                    logger('Could not push changes (this is ok in some CI environments)');
                 }
             }
         }
         else {
             if (verbose)
-                console.log('No changes to commit');
+                logger('No changes to commit');
         }
     }
     catch (error) {
         if (verbose) {
-            console.error('Error committing changes:', error);
+            logger(`Error committing changes: ${error}`);
         }
         throw error;
     }
@@ -26000,6 +26000,7 @@ async function run() {
             autoCommit,
             commitMessage,
             verbose: true,
+            logger: core.info,
         });
         // Set GitHub Action outputs
         if (result.testResults) {

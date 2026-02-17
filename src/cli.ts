@@ -21,6 +21,7 @@ export interface CLIOptions {
   commitMessage?: string;
   cwd?: string;
   verbose?: boolean;
+  logger?: (message: string) => void;
 }
 
 export interface CLIResult {
@@ -46,6 +47,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     commitMessage = 'chore: update .taf with test results',
     cwd = process.cwd(),
     verbose = false,
+    logger = console.log,
   } = options;
 
   try {
@@ -64,16 +66,16 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       exitCode = error.code || 1;
     }
 
-    if (verbose) console.log(`Test command exit code: ${exitCode}`);
+    if (verbose) logger(`Test command exit code: ${exitCode}`);
 
     // Debug: Show sample of output for troubleshooting
     if (verbose) {
       const lines = output.split('\n');
       const testLine = lines.find(l => l.includes('Tests:'));
-      console.log(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
+      logger(`DEBUG: Output lines: ${lines.length}, Found "Tests:" line: ${testLine ? 'YES' : 'NO'}`);
       if (testLine) {
-        console.log(`DEBUG: Tests line: "${testLine}"`);
-        console.log(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
+        logger(`DEBUG: Tests line: "${testLine}"`);
+        logger(`DEBUG: Tests line (hex): ${Buffer.from(testLine).toString('hex').slice(0, 100)}`);
       }
     }
 
@@ -82,9 +84,9 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
 
     if (!testResults) {
       if (verbose) {
-        console.log(`DEBUG: Parser returned null`);
-        console.log(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
-        console.log(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
+        logger(`DEBUG: Parser returned null`);
+        logger(`DEBUG: Output sample (first 500 chars): ${output.slice(0, 500)}`);
+        logger(`DEBUG: Output sample (last 500 chars): ${output.slice(-500)}`);
       }
       return {
         success: false,
@@ -94,7 +96,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     }
 
     if (verbose) {
-      console.log(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
+      logger(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
     }
 
     // Check if .taf file exists
@@ -117,12 +119,12 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     const updated = await updateTafFile(tafPath, testResults);
 
     if (updated) {
-      if (verbose) console.log('✅ .taf file updated successfully');
+      if (verbose) logger('✅ .taf file updated successfully');
 
       // Commit changes if enabled
       if (autoCommit) {
-        await commitTafUpdate(cwd, commitMessage, verbose);
-        if (verbose) console.log('✅ Changes committed to git');
+        await commitTafUpdate(cwd, commitMessage, verbose, logger);
+        if (verbose) logger('✅ Changes committed to git');
       }
 
       return {
@@ -160,7 +162,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
 /**
  * Commit .taf file changes to git (platform-agnostic)
  */
-async function commitTafUpdate(cwd: string, message: string, verbose: boolean): Promise<void> {
+async function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger: (msg: string) => void = console.log): Promise<void> {
   try {
     // Configure git if needed
     await exec('git config --global user.name "faf-taf-git[bot]"', { cwd });
@@ -180,15 +182,15 @@ async function commitTafUpdate(cwd: string, message: string, verbose: boolean): 
         await exec('git push', { cwd });
       } catch (error) {
         if (verbose) {
-          console.log('Could not push changes (this is ok in some CI environments)');
+          logger('Could not push changes (this is ok in some CI environments)');
         }
       }
     } else {
-      if (verbose) console.log('No changes to commit');
+      if (verbose) logger('No changes to commit');
     }
   } catch (error) {
     if (verbose) {
-      console.error('Error committing changes:', error);
+      logger(`Error committing changes: ${error}`);
     }
     throw error;
   }
