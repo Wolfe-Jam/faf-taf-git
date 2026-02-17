@@ -15,8 +15,11 @@ exports.parseJestOutput = parseJestOutput;
  * - "Test Suites: 2 failed, 16 passed, 18 total"
  */
 function parseJestOutput(output) {
+    // Strip ANSI color codes (common in CI environments)
+    // eslint-disable-next-line no-control-regex
+    const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
     // Look for the test summary line
-    const testLineMatch = output.match(/Tests:\s+(.+)/);
+    const testLineMatch = cleanOutput.match(/Tests:\s+(.+)/);
     if (!testLineMatch) {
         return null;
     }
@@ -26,23 +29,23 @@ function parseJestOutput(output) {
     let passed = 0;
     let failed = 0;
     let skipped = 0;
-    // Parse "173 total"
-    const totalMatch = testLine.match(/(\d+)\s+total/);
+    // Parse "173 total" (handles multiple spaces)
+    const totalMatch = testLine.match(/(\d+)\s+total/i);
     if (totalMatch) {
         total = parseInt(totalMatch[1], 10);
     }
-    // Parse "172 passed"
-    const passedMatch = testLine.match(/(\d+)\s+passed/);
+    // Parse "172 passed" (handles multiple spaces)
+    const passedMatch = testLine.match(/(\d+)\s+passed/i);
     if (passedMatch) {
         passed = parseInt(passedMatch[1], 10);
     }
-    // Parse "1 failed"
-    const failedMatch = testLine.match(/(\d+)\s+failed/);
+    // Parse "1 failed" (handles multiple spaces)
+    const failedMatch = testLine.match(/(\d+)\s+failed/i);
     if (failedMatch) {
         failed = parseInt(failedMatch[1], 10);
     }
-    // Parse "5 skipped"
-    const skippedMatch = testLine.match(/(\d+)\s+skipped/);
+    // Parse "5 skipped" (handles multiple spaces)
+    const skippedMatch = testLine.match(/(\d+)\s+skipped/i);
     if (skippedMatch) {
         skipped = parseInt(skippedMatch[1], 10);
     }
