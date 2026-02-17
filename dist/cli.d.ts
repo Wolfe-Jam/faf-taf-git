@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * faf-taf-git - Standalone CLI for TAF operations
  *
@@ -28,4 +27,3 @@ export interface CLIResult {
  * Can be called from GitHub Actions, GitLab CI, or standalone
  */
 export declare function runTafGit(options?: CLIOptions): Promise<CLIResult>;
-//# sourceMappingURL=cli.d.ts.map

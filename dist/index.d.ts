@@ -5,4 +5,3 @@
  * Handles GitHub Actions-specific inputs/outputs
  */
 export {};
-//# sourceMappingURL=index.d.ts.map
