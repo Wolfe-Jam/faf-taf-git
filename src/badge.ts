@@ -60,10 +60,10 @@ export function renderBadgeSvg(label: string, value: string, color: string): str
     <rect width="${totalWidth}" height="${height}" fill="url(#s)"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
-    <text x="${labelX}" y="140" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${(labelWidth - padding) * 10}">${label}</text>
-    <text x="${labelX}" y="130" transform="scale(.1)" textLength="${(labelWidth - padding) * 10}">${label}</text>
-    <text x="${valueX}" y="140" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${(valueWidth - padding) * 10}">${value}</text>
-    <text x="${valueX}" y="130" transform="scale(.1)" textLength="${(valueWidth - padding) * 10}">${value}</text>
+    <text x="${labelX}" y="14" fill="#010101" fill-opacity=".3">${label}</text>
+    <text x="${labelX}" y="13" fill="#fff">${label}</text>
+    <text x="${valueX}" y="14" fill="#010101" fill-opacity=".3">${value}</text>
+    <text x="${valueX}" y="13" fill="#fff">${value}</text>
   </g>
 </svg>`;
 }
