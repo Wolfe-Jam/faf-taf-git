@@ -1,6 +1,7 @@
 # faf-taf-git
 
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
 
 **The Git-Native Receipt Printer** - test results that never disappear.
 
