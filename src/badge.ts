@@ -23,6 +23,7 @@ interface LatestRun {
   passed: number;
   total: number;
   failed: number;
+  skipped: number;
 }
 
 const COLOR_PASS = '#00D4D4';  // Cyan sweetspot
@@ -98,6 +99,7 @@ function getLatestRun(tafPath: string): LatestRun | null {
     passed: latest.tests.passed ?? 0,
     total: latest.tests.total,
     failed: latest.tests.failed ?? 0,
+    skipped: latest.tests.skipped ?? 0,
   };
 }
 
@@ -118,7 +120,9 @@ export function generateBadge(options: BadgeOptions = {}): BadgeResult {
       };
     }
 
-    const value = `${run.passed}/${run.total} passing`;
+    const skippedSuffix = run.skipped > 0 ? ` (${run.skipped} skipped)` : '';
+    const displayPassed = run.failed === 0 ? run.total : run.passed;
+    const value = `${displayPassed}/${run.total} passing${skippedSuffix}`;
     const color = run.failed === 0 ? COLOR_PASS : COLOR_FAIL;
 
     return {
