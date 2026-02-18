@@ -1,5 +1,7 @@
 # faf-taf-git
 
+![TAF](./badge.svg)
+
 **The Git-Native Receipt Printer** - test results that never disappear.
 
 `npm: faf-taf-git` · `action: Wolfe-Jam/faf-taf-git`
