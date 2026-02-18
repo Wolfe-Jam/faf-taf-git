@@ -1,6 +1,8 @@
 # faf-taf-git
 
-**Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD**
+**The Git-Native Receipt Printer** - test results that never disappear.
+
+`npm: faf-taf-git` · `action: Wolfe-Jam/faf-taf-git`
 
 Part of the Golden Triangle: `.faf` (what it is) + `repo` (implementation) + `.taf` (proof it works)
 
@@ -297,8 +299,8 @@ Options:
 | Framework | Status | Notes |
 |-----------|--------|-------|
 | **Jest** | ✅ Fully supported | All output formats |
+| **Vitest** | ✅ Fully supported | Including todo counts |
 | Mocha | ⏳ Planned | - |
-| Vitest | ⏳ Planned | - |
 | Pytest | ⏳ Planned | - |
 | Go test | ⏳ Planned | - |
 | Rust cargo test | ⏳ Planned | - |
