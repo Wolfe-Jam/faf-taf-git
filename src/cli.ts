@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseTestOutput } from './parsers';
 import { updateTafFile } from './taf-core';
+import { generateBadge } from './badge';
 
 export interface CLIOptions {
   file?: string;
@@ -177,10 +178,72 @@ function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger:
 }
 
 /**
+ * Handle the 'badge' subcommand
+ */
+function handleBadgeCommand(args: string[]): void {
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+faf-taf-git badge - Generate SVG badge from .taf history
+
+USAGE:
+  npx faf-taf-git badge [OPTIONS]
+
+OPTIONS:
+  --output <path>     Write SVG to file (default: stdout)
+  --label <text>      Badge label (default: TAF)
+  --taf <path>        Path to .taf file (default: .taf)
+  --help, -h          Show this help
+`);
+    process.exit(0);
+  }
+
+  // Parse --output
+  let outputPath: string | undefined;
+  const outputIndex = args.indexOf('--output');
+  if (outputIndex !== -1 && args[outputIndex + 1]) {
+    outputPath = args[outputIndex + 1];
+  }
+
+  // Parse --label
+  let label: string | undefined;
+  const labelIndex = args.indexOf('--label');
+  if (labelIndex !== -1 && args[labelIndex + 1]) {
+    label = args[labelIndex + 1];
+  }
+
+  // Parse --taf
+  let tafPath: string | undefined;
+  const tafIndex = args.indexOf('--taf');
+  if (tafIndex !== -1 && args[tafIndex + 1]) {
+    tafPath = args[tafIndex + 1];
+  }
+
+  const result = generateBadge({ tafPath, label });
+
+  if (!result.success || !result.svg) {
+    console.error(`Error: ${result.error || 'Failed to generate badge'}`);
+    process.exit(1);
+  }
+
+  if (outputPath) {
+    fs.writeFileSync(outputPath, result.svg, 'utf-8');
+    console.log(`Badge written to ${outputPath}`);
+  } else {
+    process.stdout.write(result.svg);
+  }
+}
+
+/**
  * CLI entry point
  */
 async function main() {
   const args = process.argv.slice(2);
+
+  // Subcommand: badge
+  if (args[0] === 'badge') {
+    handleBadgeCommand(args.slice(1));
+    return;
+  }
 
   // Show help
   if (args.includes('--help') || args.includes('-h')) {
@@ -190,6 +253,9 @@ faf-taf-git - The Git-Native Receipt Printer
 USAGE:
   npm test 2>&1 | tee test-output.txt
   npx faf-taf-git --file test-output.txt [OPTIONS]
+
+COMMANDS:
+  badge               Generate a shields.io-style SVG badge from .taf
 
 OPTIONS:
   --file <path>       Path to test output file (required)
@@ -210,8 +276,8 @@ EXAMPLES:
   # Custom commit message
   npx faf-taf-git --file test-output.txt --commit --message "test: update TAF"
 
-  # Verbose mode
-  npx faf-taf-git --file test-output.txt --verbose
+  # Generate badge
+  npx faf-taf-git badge --output badge.svg
 
 PLATFORM SUPPORT:
   Works in ANY CI/CD that runs Node.js:

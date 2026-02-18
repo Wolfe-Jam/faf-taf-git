@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * faf-taf-git - Standalone CLI for TAF operations
+ * faf-taf-git - The Git-Native Receipt Printer
  *
- * Platform-agnostic core that works in ANY CI/CD environment
- * Can be used standalone or as a library by wrappers
+ * v2.x CLI: reads test output from file (pre-capture pattern)
+ * Platform-agnostic - works in ANY CI/CD environment or locally
  */
 export interface CLIOptions {
-    command?: string;
+    file?: string;
     autoCommit?: boolean;
     commitMessage?: string;
     cwd?: string;
@@ -25,7 +25,7 @@ export interface CLIResult {
     error?: string;
 }
 /**
- * Main CLI function - platform-agnostic
- * Can be called from GitHub Actions, GitLab CI, or standalone
+ * Main CLI function - reads test output from file
  */
 export declare function runTafGit(options?: CLIOptions): Promise<CLIResult>;
+//# sourceMappingURL=cli.d.ts.map
