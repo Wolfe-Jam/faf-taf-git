@@ -1,6 +1,6 @@
 # faf-taf-git
 
-![TAF](./badge.svg)
+[![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
 
 **The Git-Native Receipt Printer** - test results that never disappear.
 
