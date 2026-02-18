@@ -26,7 +26,7 @@ interface LatestRun {
 }
 
 const COLOR_PASS = '#00D4D4';  // Cyan sweetspot
-const COLOR_FAIL = '#E05D44';  // Red
+const COLOR_FAIL = '#E32400';  // Red
 const COLOR_NONE = '#9F9F9F';  // Gray
 
 /**

@@ -61,11 +61,11 @@ describe('SVG Rendering', () => {
   });
 
   test('should handle custom label', () => {
-    const svg = renderBadgeSvg('tests', '99/100 passing', '#E05D44');
+    const svg = renderBadgeSvg('tests', '99/100 passing', '#E32400');
 
     expect(svg).toContain('tests');
     expect(svg).toContain('99/100 passing');
-    expect(svg).toContain('#E05D44');
+    expect(svg).toContain('#E32400');
   });
 });
 
@@ -121,7 +121,7 @@ test_history:
 
     expect(result.success).toBe(true);
     expect(result.svg).toContain('35/38 passing');
-    expect(result.svg).toContain('#E05D44');
+    expect(result.svg).toContain('#E32400');
   });
 
   test('should generate gray badge when .taf is missing', () => {
