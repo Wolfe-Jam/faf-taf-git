@@ -9,7 +9,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseJestOutput } from './parsers/jest';
+import { parseTestOutput } from './parsers';
 import { updateTafFile } from './taf-core';
 
 export interface CLIOptions {
@@ -70,7 +70,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     if (verbose) logger(`Read ${output.length} bytes from ${filePath}`);
 
     // Parse test output
-    const testResults = parseJestOutput(output);
+    const testResults = parseTestOutput(output);
 
     if (!testResults) {
       if (verbose) {
@@ -80,7 +80,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       return {
         success: false,
         tafUpdated: false,
-        error: 'Could not parse test output. Ensure you are using Jest.',
+        error: 'Could not parse test output. Supported: Jest, Vitest.',
       };
     }
 

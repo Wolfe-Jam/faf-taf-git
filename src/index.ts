@@ -9,7 +9,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseJestOutput } from './parsers/jest';
+import { parseTestOutput } from './parsers';
 import { updateTafFile } from './taf-core';
 
 /**
@@ -78,10 +78,10 @@ async function run(): Promise<void> {
     }
 
     // Parse test results
-    const testResults = parseJestOutput(testOutput);
+    const testResults = parseTestOutput(testOutput);
 
     if (!testResults) {
-      core.setFailed('Could not parse test output. Ensure you are using Jest.');
+      core.setFailed('Could not parse test output. Supported: Jest, Vitest.');
       return;
     }
 
