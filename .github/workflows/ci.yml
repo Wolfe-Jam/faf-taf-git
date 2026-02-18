@@ -1,0 +1,40 @@
+name: CI + TAF Receipt
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test + Receipt
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test 2>&1 | tee test-output.txt
+
+      - name: Update TAF Receipt
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: Wolfe-Jam/faf-taf-git@v2.0.4
+        with:
+          test-output-file: test-output.txt
+          auto-commit: 'true'
+          commit-message: 'chore(taf): update receipt [skip ci]'
