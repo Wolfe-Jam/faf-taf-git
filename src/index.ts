@@ -13,9 +13,49 @@ import { parseTestOutput } from './parsers';
 import { updateTafFile } from './taf-core';
 
 /**
- * Commit .taf file changes to git
+ * Switch to a dedicated target branch for TAF receipts.
+ * Creates the branch as an orphan on first run, seeded with existing .taf.
  */
-async function commitTafUpdate(cwd: string, message: string): Promise<void> {
+async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: string | null): Promise<void> {
+  const execOptions = { cwd };
+
+  // Configure git (needed before any git operations)
+  await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+  await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+
+  // Check if target branch exists on remote
+  const { exitCode } = await exec.getExecOutput(
+    'git', ['ls-remote', '--exit-code', 'origin', targetBranch],
+    { ...execOptions, ignoreReturnCode: true }
+  );
+
+  if (exitCode === 0) {
+    // Branch exists — fetch and checkout
+    await exec.exec('git', ['fetch', 'origin', targetBranch], execOptions);
+    await exec.exec('git', ['checkout', targetBranch], execOptions);
+    core.info(`Switched to existing branch: ${targetBranch}`);
+  } else {
+    // Branch doesn't exist — create orphan
+    await exec.exec('git', ['checkout', '--orphan', targetBranch], execOptions);
+    await exec.getExecOutput('git', ['rm', '-rf', '.'], { ...execOptions, ignoreReturnCode: true });
+
+    // Seed with existing .taf from source branch
+    const tafPath = path.join(cwd, '.taf');
+    if (tafSeed) {
+      fs.writeFileSync(tafPath, tafSeed, 'utf-8');
+      core.info(`Seeded ${targetBranch} with existing .taf data`);
+    }
+
+    await exec.exec('git', ['add', '.taf'], execOptions);
+    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`], execOptions);
+    core.info(`Created new branch: ${targetBranch}`);
+  }
+}
+
+/**
+ * Commit .taf file changes to git and push
+ */
+async function commitTafUpdate(cwd: string, message: string, targetBranch?: string): Promise<void> {
   const execOptions = { cwd };
 
   // Configure git
@@ -31,9 +71,10 @@ async function commitTafUpdate(cwd: string, message: string): Promise<void> {
   if (exitCode === 0) {
     await exec.exec('git', ['commit', '-m', message], execOptions);
 
-    // Try to push (might fail in some environments, that's ok)
+    // Push to target branch or current branch
+    const pushArgs = targetBranch ? ['push', 'origin', targetBranch] : ['push'];
     try {
-      await exec.exec('git', ['push'], execOptions);
+      await exec.exec('git', pushArgs, execOptions);
     } catch (error) {
       core.warning('Could not push changes (this is ok in some CI environments)');
     }
@@ -46,6 +87,7 @@ async function run(): Promise<void> {
     const testOutputFile = core.getInput('test-output-file', { required: true });
     const autoCommit = core.getInput('auto-commit') !== 'false';
     const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
+    const targetBranch = core.getInput('target-branch') || '';
     const cwd = process.cwd();
 
     core.info(`Reading test output from: ${testOutputFile}`);
@@ -93,8 +135,20 @@ async function run(): Promise<void> {
     core.setOutput('failed', testResults.failed.toString());
     core.setOutput('total', testResults.total.toString());
 
-    // Check if .taf file exists
+    // If target-branch is set, save .taf seed and switch branches
+    let tafSeed: string | null = null;
     const tafPath = path.join(cwd, '.taf');
+
+    if (targetBranch) {
+      // Save existing .taf from source branch as seed for first-run
+      if (fs.existsSync(tafPath)) {
+        tafSeed = fs.readFileSync(tafPath, 'utf-8');
+      }
+      core.info(`Switching to target branch: ${targetBranch}`);
+      await switchToTargetBranch(cwd, targetBranch, tafSeed);
+    }
+
+    // Check if .taf file exists (on current or target branch)
     if (!fs.existsSync(tafPath)) {
       core.setFailed('No .taf file found. Run `faf taf init` to create one.');
       return;
@@ -114,8 +168,8 @@ async function run(): Promise<void> {
 
     // Commit changes if enabled
     if (autoCommit) {
-      await commitTafUpdate(cwd, commitMessage);
-      core.info('✅ Changes committed to git');
+      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined);
+      core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
     }
 
   } catch (error) {

@@ -28,4 +28,3 @@ export interface CLIResult {
  * Main CLI function - reads test output from file
  */
 export declare function runTafGit(options?: CLIOptions): Promise<CLIResult>;
-//# sourceMappingURL=cli.d.ts.map

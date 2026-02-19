@@ -21,6 +21,11 @@ inputs:
     required: false
     default: 'chore(taf): update .taf receipt [skip ci]'
 
+  target-branch:
+    description: 'Push receipts to a dedicated branch (e.g. taf-receipts) instead of the current branch. Branch is created automatically on first run and seeded with existing .taf data.'
+    required: false
+    default: ''
+
 outputs:
   result:
     description: 'Test result (PASSED, FAILED, IMPROVED, DEGRADED)'

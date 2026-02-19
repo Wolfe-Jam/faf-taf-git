@@ -25692,12 +25692,44 @@ const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
-const jest_1 = __nccwpck_require__(3416);
+const parsers_1 = __nccwpck_require__(8311);
 const taf_core_1 = __nccwpck_require__(390);
 /**
- * Commit .taf file changes to git
+ * Switch to a dedicated target branch for TAF receipts.
+ * Creates the branch as an orphan on first run, seeded with existing .taf.
  */
-async function commitTafUpdate(cwd, message) {
+async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
+    const execOptions = { cwd };
+    // Configure git (needed before any git operations)
+    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
+    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+    // Check if target branch exists on remote
+    const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', targetBranch], { ...execOptions, ignoreReturnCode: true });
+    if (exitCode === 0) {
+        // Branch exists — fetch and checkout
+        await exec.exec('git', ['fetch', 'origin', targetBranch], execOptions);
+        await exec.exec('git', ['checkout', targetBranch], execOptions);
+        core.info(`Switched to existing branch: ${targetBranch}`);
+    }
+    else {
+        // Branch doesn't exist — create orphan
+        await exec.exec('git', ['checkout', '--orphan', targetBranch], execOptions);
+        await exec.getExecOutput('git', ['rm', '-rf', '.'], { ...execOptions, ignoreReturnCode: true });
+        // Seed with existing .taf from source branch
+        const tafPath = path.join(cwd, '.taf');
+        if (tafSeed) {
+            fs.writeFileSync(tafPath, tafSeed, 'utf-8');
+            core.info(`Seeded ${targetBranch} with existing .taf data`);
+        }
+        await exec.exec('git', ['add', '.taf'], execOptions);
+        await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`], execOptions);
+        core.info(`Created new branch: ${targetBranch}`);
+    }
+}
+/**
+ * Commit .taf file changes to git and push
+ */
+async function commitTafUpdate(cwd, message, targetBranch) {
     const execOptions = { cwd };
     // Configure git
     await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
@@ -25708,9 +25740,10 @@ async function commitTafUpdate(cwd, message) {
     const { exitCode } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
     if (exitCode === 0) {
         await exec.exec('git', ['commit', '-m', message], execOptions);
-        // Try to push (might fail in some environments, that's ok)
+        // Push to target branch or current branch
+        const pushArgs = targetBranch ? ['push', 'origin', targetBranch] : ['push'];
         try {
-            await exec.exec('git', ['push'], execOptions);
+            await exec.exec('git', pushArgs, execOptions);
         }
         catch (error) {
             core.warning('Could not push changes (this is ok in some CI environments)');
@@ -25723,6 +25756,7 @@ async function run() {
         const testOutputFile = core.getInput('test-output-file', { required: true });
         const autoCommit = core.getInput('auto-commit') !== 'false';
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
+        const targetBranch = core.getInput('target-branch') || '';
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
         // Read test output file (written by previous CI step)
@@ -25750,9 +25784,9 @@ async function run() {
             });
         }
         // Parse test results
-        const testResults = (0, jest_1.parseJestOutput)(testOutput);
+        const testResults = (0, parsers_1.parseTestOutput)(testOutput);
         if (!testResults) {
-            core.setFailed('Could not parse test output. Ensure you are using Jest.');
+            core.setFailed('Could not parse test output. Supported: Jest, Vitest.');
             return;
         }
         core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
@@ -25761,8 +25795,18 @@ async function run() {
         core.setOutput('passed', testResults.passed.toString());
         core.setOutput('failed', testResults.failed.toString());
         core.setOutput('total', testResults.total.toString());
-        // Check if .taf file exists
+        // If target-branch is set, save .taf seed and switch branches
+        let tafSeed = null;
         const tafPath = path.join(cwd, '.taf');
+        if (targetBranch) {
+            // Save existing .taf from source branch as seed for first-run
+            if (fs.existsSync(tafPath)) {
+                tafSeed = fs.readFileSync(tafPath, 'utf-8');
+            }
+            core.info(`Switching to target branch: ${targetBranch}`);
+            await switchToTargetBranch(cwd, targetBranch, tafSeed);
+        }
+        // Check if .taf file exists (on current or target branch)
         if (!fs.existsSync(tafPath)) {
             core.setFailed('No .taf file found. Run `faf taf init` to create one.');
             return;
@@ -25778,8 +25822,8 @@ async function run() {
         core.info('✅ .taf file updated successfully');
         // Commit changes if enabled
         if (autoCommit) {
-            await commitTafUpdate(cwd, commitMessage);
-            core.info('✅ Changes committed to git');
+            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined);
+            core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
         }
     }
     catch (error) {
@@ -25793,6 +25837,31 @@ async function run() {
 }
 // Run the GitHub Action
 run();
+
+
+/***/ }),
+
+/***/ 8311:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/**
+ * Unified test output parser
+ *
+ * Tries each framework parser in order until one succeeds.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseTestOutput = parseTestOutput;
+const jest_1 = __nccwpck_require__(3416);
+const vitest_1 = __nccwpck_require__(9839);
+/**
+ * Parse test output from any supported framework.
+ * Tries parsers in order: Jest, Vitest.
+ */
+function parseTestOutput(output) {
+    return (0, jest_1.parseJestOutput)(output) || (0, vitest_1.parseVitestOutput)(output);
+}
 
 
 /***/ }),
@@ -25887,6 +25956,74 @@ function parseJestOutput(output) {
  * With padding (CI):
  * "Tests:       9 skipped, 799 passed, 808 total"
  */
+
+
+/***/ }),
+
+/***/ 9839:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Vitest output parser
+ *
+ * Extracts test counts from Vitest CLI output
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseVitestOutput = parseVitestOutput;
+/**
+ * Parse Vitest output to extract test results
+ *
+ * Vitest output formats:
+ * - " Tests  8 passed (8)"
+ * - " Tests  2 failed | 6 passed (8)"
+ * - " Tests  1 skipped | 7 passed (8)"
+ * - " Tests  1 failed | 2 skipped | 5 passed (8)"
+ */
+function parseVitestOutput(output) {
+    // Strip ANSI color codes
+    // eslint-disable-next-line no-control-regex
+    let cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+    cleanOutput = cleanOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Vitest summary pattern: " Tests  ... (N)" where N is total in parens
+    const testSummaryPattern = /^\s*Tests\s+(.+?\(\d+\))/m;
+    const testLineMatch = cleanOutput.match(testSummaryPattern);
+    if (!testLineMatch || !testLineMatch[1]) {
+        return null;
+    }
+    const testLine = testLineMatch[1];
+    // Extract total from parentheses at end
+    const totalMatch = testLine.match(/\((\d+)\)\s*$/);
+    if (!totalMatch)
+        return null;
+    const total = parseInt(totalMatch[1], 10);
+    if (total === 0)
+        return null;
+    let passed = 0;
+    let failed = 0;
+    let skipped = 0;
+    const passedMatch = testLine.match(/(\d+)\s+passed/i);
+    if (passedMatch)
+        passed = parseInt(passedMatch[1], 10);
+    const failedMatch = testLine.match(/(\d+)\s+failed/i);
+    if (failedMatch)
+        failed = parseInt(failedMatch[1], 10);
+    const skippedMatch = testLine.match(/(\d+)\s+skipped/i);
+    if (skippedMatch)
+        skipped = parseInt(skippedMatch[1], 10);
+    const todoMatch = testLine.match(/(\d+)\s+todo/i);
+    if (todoMatch)
+        skipped += parseInt(todoMatch[1], 10);
+    let result = failed > 0 ? 'FAILED' : 'PASSED';
+    return {
+        total,
+        passed,
+        failed,
+        skipped: skipped > 0 ? skipped : undefined,
+        result,
+    };
+}
 
 
 /***/ }),
