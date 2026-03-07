@@ -7,9 +7,8 @@
     "faf-taf-git": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "jest",
-    "package": "ncc build src/index.ts -o dist --source-map --license licenses.txt"
+    "build": "tsc && ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
