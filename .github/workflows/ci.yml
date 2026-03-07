@@ -45,7 +45,7 @@ jobs:
       # ── R: RECEIPT ────────────────────────────────
       - name: 'R: Generate TAF Receipt'
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-        uses: Wolfe-Jam/faf-taf-git@v2.1.0
+        uses: Wolfe-Jam/faf-taf-git@v2.1.1
         with:
           test-output-file: test-output.txt
           auto-commit: 'true'
