@@ -1,15 +1,19 @@
-name: Update Homebrew Formula
+name: Update Homebrew
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
+
 jobs:
-  update-homebrew:
+  homebrew:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Homebrew tap update
+      - name: Update Homebrew formula
         run: |
-          curl -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.HOMEBREW_TAP_TOKEN }}" \
-            https://api.github.com/repos/Wolfe-Jam/homebrew-faf/dispatches \
-            -d '{"event_type":"update-formula","client_payload":{"npm_package":"faf-taf-git","version":"${{ github.ref_name }}"}}'
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh workflow run update-formula.yml \
+            -R Wolfe-Jam/homebrew-faf \
+            -f formula=faf-taf-git \
+            -f version=$VERSION \
+            -f npm_package=faf-taf-git
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
