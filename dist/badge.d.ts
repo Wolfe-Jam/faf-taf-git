@@ -21,3 +21,4 @@ export declare function renderBadgeSvg(label: string, value: string, color: stri
  * Generate a badge SVG from a .taf file.
  */
 export declare function generateBadge(options?: BadgeOptions): BadgeResult;
+//# sourceMappingURL=badge.d.ts.map

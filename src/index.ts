@@ -31,6 +31,8 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
 
   if (exitCode === 0) {
     // Branch exists — fetch and checkout
+    // Stash any working tree changes (e.g. dist/ from build step) to allow clean checkout
+    await exec.exec('git', ['stash', '--include-untracked'], execOptions);
     await exec.exec('git', ['fetch', 'origin', targetBranch], execOptions);
     await exec.exec('git', ['checkout', targetBranch], execOptions);
     core.info(`Switched to existing branch: ${targetBranch}`);
