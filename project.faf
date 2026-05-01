@@ -4,7 +4,7 @@ ai_score: 65%
 ai_confidence: MODERATE
 ai_value: 30_seconds_replaces_20_minutes_of_questions
 ai_tldr:
-  project: faf-taf-git v2.0.4 - Git-tracked testing timelines for ANY CI/CD
+  project: faf-taf-git v2.1.1 - Git-tracked testing timelines for ANY CI/CD
   stack: TypeScript CLI + GitHub Action (pre-capture architecture)
   quality_bar: ZERO_ERRORS_F1_STANDARDS
   status: PRODUCTION_READY (working in faf-cli repo)
@@ -130,8 +130,8 @@ taf_format:
   snapshots_faf_score: true
   closed_loop_system: .faf (DNA) + repo (code) + .taf (proof) = Golden Triangle
 deployment:
-  npm_package: faf-taf-git@2.0.4
-  github_action: Wolfe-Jam/faf-taf-git@v2.0.4
+  npm_package: faf-taf-git@2.1.1
+  github_action: Wolfe-Jam/faf-taf-git@v2.1.1
   marketplaces:
     - npm Registry
     - GitHub Actions Marketplace
@@ -184,7 +184,7 @@ resources:
   discussions: https://github.com/Wolfe-Jam/faf/discussions
 state:
   phase: production
-  version: 2.0.4
+  version: 2.1.1
   focus: ecosystem_adoption
   status: production_ready
   achievements:
