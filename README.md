@@ -9,11 +9,11 @@
 >
 > *Bonus: Cannot be gamed.*
 
-**TAF is a Receipt Printer.** Every CI run prints a receipt to `.taf`. The receipts accumulate on a git branch. The history is append-only. The proof is permanent.
+**TAF is a Receipt Printer for git.** Every CI run prints a receipt to `.taf`. The receipts accumulate on a git branch. The history is append-only. The proof is permanent.
+
+**Works on any git repo. No FAF required.** TAF is a standalone product — install the action, get receipts. FAF integration is one of TAF's use cases (see below), not a precondition.
 
 `npm: faf-taf-git` · `action: Wolfe-Jam/faf-taf-git`
-
-Part of the **CAR Framework**: **C**laim (`.faf`) → **A**udit (WJTTC) → **R**eceipt (`.taf`).
 
 ---
 
@@ -38,7 +38,6 @@ Part of the **CAR Framework**: **C**laim (`.faf`) → **A**udit (WJTTC) → **R*
 **What you get:**
 - **Proof over time** — longitudinal evidence, not snapshots
 - **Pattern detection** — pass-rate trends, regression vs new failure
-- **AI-readable** — feeds into `.faf` project DNA
 - **Platform-agnostic** — works in ANY CI/CD (GitHub Actions, GitLab, Jenkins, CircleCI, Bitbucket, Azure, local, pre-commit)
 - **Git-native** — no external services, no SaaS lock-in
 - **Cannot be gamed** — git SHA detects edits, append-only history detects deletions, CI sandbox prevents output forgery
@@ -137,6 +136,32 @@ Works in **ANY CI/CD** environment that runs Node.js:
 - You only need current test status (use a test reporter)
 - You don't commit to git (TAF is git-native)
 - You're not ready for accountability 😉
+
+---
+
+## 🧩 Use Cases
+
+TAF works on any git repo. Adoption requires **zero ecosystem buy-in** — install the action, you get receipts. Below are the use cases TAF serves today and tomorrow:
+
+### Standalone (no FAF required)
+
+| Use Case | What TAF gives you |
+|---|---|
+| **Plain JS/TS projects** | Receipt for every Jest or Vitest run, on every CI execution |
+| **Pytest projects** | Receipt for every Python test run *(pending pytest parser — v2.2 roadmap)* |
+| **Open source maintainers** | "This repo has 1,847 receipts going back 14 months, none missing" |
+| **Regulated industries** (SOC 2, ISO, HIPAA) | Append-only longitudinal evidence — auditors get a tamper-evident timeline, not a snapshot |
+| **Supply-chain trust** | "Prove these tests ran before this artifact shipped" |
+| **AI-agent verification** | "Prove this agent's code passed tests consistently over the last 90 days" |
+
+### With FAF (optional integration)
+
+| Use Case | What TAF gives you |
+|---|---|
+| **FAF-aware projects** | Receipts include `faf_score`, `faf_associated`, `faf_location` — the receipt tells you not just *did the tests pass*, but *what was the project's AI-readiness when they ran*. Score trends over time become visible. |
+| **Full CAR Framework** | TAF (Receipt) + WJTTC (Audit) + FAF (Claim) — closed-loop attestation: project DNA → testing audit → permanent receipt |
+
+**FAF is one tenant among many.** TAF is the platform. The receipt printer doesn't care what kind of project prints to it.
 
 ---
 
@@ -481,10 +506,22 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## 📚 Learn More
 
-- [FAF CLI](https://npmjs.com/package/faf-cli) - Create and manage `.faf` files
+- [FAF CLI](https://npmjs.com/package/faf-cli) - Create and manage `.faf` files (one of TAF's use cases)
 - [MCP Server](https://npmjs.com/package/claude-faf-mcp) - Claude MCP integration
 - [Website](https://faf.one) - Official FAF website
 - [GitHub Discussions](https://github.com/Wolfe-Jam/faf/discussions) - Ask questions
+
+---
+
+## 🛣️ Standards Roadmap
+
+| Format | IANA Status |
+|---|---|
+| `application/vnd.faf+yaml` (FAF) | ✅ **Registered** |
+| `application/vnd.fafm+yaml` (VML) | 🟡 **Under review** |
+| `application/vnd.taf+yaml` (TAF) | ⏳ **Queued** |
+
+`.taf` is filed entirely on its own merits — append-only test provenance, git-tracked, tamper-evident — independent of `.faf`'s registration.
 
 ---
 
