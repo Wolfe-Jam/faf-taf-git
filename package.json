@@ -1,7 +1,7 @@
 {
   "name": "faf-taf-git",
   "version": "2.1.1",
-  "description": "Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD",
+  "description": "A Test Receipt Printer for git. Every CI run prints a receipt to .taf — append-only, timestamped, cannot be gamed. Proof over time.",
   "main": "dist/cli.js",
   "bin": {
     "faf-taf-git": "dist/cli.js"

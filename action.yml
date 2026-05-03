@@ -1,5 +1,5 @@
 name: 'FAF TAF Action'
-description: 'Automatically update .taf (Testing Activity Feed) files with test results'
+description: 'A Test Receipt Printer for git. Prints a Test Receipt to .taf on every CI run — append-only, cannot be gamed. Proof over time.'
 author: 'wolfejam'
 
 branding:

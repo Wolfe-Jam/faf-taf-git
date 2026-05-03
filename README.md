@@ -3,25 +3,25 @@
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
 
-**The Git-Native Receipt Printer** - test results that never disappear.
+> **Q: What does TAF do?** A: It prints Receipts.
+> **Q: What sort of Receipts?** A: Test Receipts.
+> **Q: Why do I need Test Receipts?** A: Proof over time.
+>
+> *Bonus: Cannot be gamed.*
+
+**TAF is a Receipt Printer.** Every CI run prints a receipt to `.taf`. The receipts accumulate on a git branch. The history is append-only. The proof is permanent.
 
 `npm: faf-taf-git` · `action: Wolfe-Jam/faf-taf-git`
 
-Part of the Golden Triangle: `.faf` (what it is) + `repo` (implementation) + `.taf` (proof it works)
+Part of the **CAR Framework**: **C**laim (`.faf`) → **A**udit (WJTTC) → **R**eceipt (`.taf`).
 
 ---
 
 ## 🎯 WHAT
 
-**faf-taf-git** automatically generates `.taf` receipts from your test runs.
+**A Test Receipt Printer for git.** Every CI run produces one receipt — timestamp, counts, result, trigger — appended to `.taf` on the `taf-receipts` branch. The timeline is the proof.
 
-A `.taf` file is a git-tracked timeline of your testing history:
-- Permanent proof of test quality
-- Pass rate trends and failure patterns
-- Integration with `.faf` project DNA
-- Git-native accountability (no external services required)
-
-**Example .taf entry:**
+**Example Test Receipt:**
 ```yaml
 - timestamp: 2026-02-17T19:12:14.810Z
   result: PASSED
@@ -32,6 +32,16 @@ A `.taf` file is a git-tracked timeline of your testing history:
     skipped: 9
   trigger: github-actions
 ```
+
+**Every field maps to a real receipt:** timestamp = receipt date, tests = itemized lines, result = total, trigger = cashier/register, run_id = receipt number, project = vendor, format_version = receipt template.
+
+**What you get:**
+- **Proof over time** — longitudinal evidence, not snapshots
+- **Pattern detection** — pass-rate trends, regression vs new failure
+- **AI-readable** — feeds into `.faf` project DNA
+- **Platform-agnostic** — works in ANY CI/CD (GitHub Actions, GitLab, Jenkins, CircleCI, Bitbucket, Azure, local, pre-commit)
+- **Git-native** — no external services, no SaaS lock-in
+- **Cannot be gamed** — git SHA detects edits, append-only history detects deletions, CI sandbox prevents output forgery
 
 ---
 
@@ -477,6 +487,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 - [GitHub Discussions](https://github.com/Wolfe-Jam/faf/discussions) - Ask questions
 
 ---
+
+If `faf-taf-git` has been useful, consider starring the repo — it helps others find it.
 
 ## 📄 License
 
