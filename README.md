@@ -1,3 +1,6 @@
+<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: doc=readme | canonical=project.faf | score=100 | family=TAF -->
+
 # faf-taf-git
 
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)

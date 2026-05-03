@@ -1,3 +1,6 @@
+<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: doc=contributing | canonical=project.faf | family=TAF -->
+
 # Contributing to FAF TAF Action
 
 Thank you for considering contributing to the FAF TAF Action!

@@ -1,3 +1,6 @@
+<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: doc=changelog | latest=v2.1.1 | canonical=project.faf | family=TAF -->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

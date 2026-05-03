@@ -1,4 +1,5 @@
-<!-- faf: faf-taf-git | TypeScript | Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD -->
+<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: claim=project.faf | score=100 | family=TAF | siblings=README.md,.taf,CHANGELOG.md -->
 
 # 🏎️ CLAUDE.md - faf-taf-git Persistent Context & Intelligence
 
