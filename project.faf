@@ -17,10 +17,8 @@ instant_context:
   main_language: TypeScript
   deployment: npm + GitHub Actions Marketplace
   architecture: v2.0.0 pre-capture pattern (separate test execution from receipt generation)
-  use_cases: Standalone CLI, GitHub Action, GitLab CI, Jenkins, CircleCI, Local
-    development
-  test_support: Jest (fully supported) with plans for Mocha, Vitest, Pytest, Go
-    test, Rust cargo
+  use_cases: Standalone CLI, GitHub Action, GitLab CI, Jenkins, CircleCI, Local development
+  test_support: Jest (fully supported) with plans for Mocha, Vitest, Pytest, Go test, Rust cargo
   golden_triangle: .faf (project DNA) + repo (code) + .taf (test proof)
   key_files:
     - src/index.ts (v2.0.0 rewrite - reads test output file)
@@ -40,7 +38,7 @@ context_quality:
   missing_context: []
 project:
   name: faf-taf-git
-  goal: Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD
+  goal: Platform-agnostic CLI + GitHub Action for TAF updates
   innovation: On-the-fly Testing Audit Files - Unheard of in CI/CD
   taf_meaning:
     file: Testing Audit File (.taf)
@@ -51,8 +49,7 @@ project:
   repository: https://github.com/Wolfe-Jam/faf-taf-git
   license: MIT
   author: wolfejam
-  keywords: testing, taf, ci-cd, github-actions, gitlab-ci, platform-agnostic,
-    jest, faf, git
+  keywords: testing, taf, ci-cd, github-actions, gitlab-ci, platform-agnostic, jest, faf, git
   mission: 🚀 Make Your AI Happy! 🧡 Trust-Driven 🤖
   revolution: 30 seconds replaces 20 minutes of questions
   brand: F1-Inspired Software Engineering - Championship AI Context
@@ -71,14 +68,14 @@ ai_instructions:
     - All TypeScript must pass strict mode
     - Test coverage required for new features
 stack:
-  frontend: slotignored  # TAF is a CLI + GitHub Action, no frontend
-  css_framework: slotignored  # N/A for a CLI/Action
-  ui_library: slotignored  # N/A for a CLI/Action
-  state_management: slotignored  # N/A — TAF is stateless; state lives in .taf on git
-  backend: slotignored  # TAF runs in CI sandbox, not a server
+  frontend: slotignored
+  css_framework: slotignored
+  ui_library: slotignored
+  state_management: slotignored
+  backend: slotignored
   runtime: Node.js
-  database: slotignored  # Receipts are YAML files in git, no database
-  connection: slotignored  # No DB → no connection layer
+  database: slotignored
+  connection: slotignored
   build: TypeScript Compiler
   package_manager: npm
   api_type: REST
@@ -215,9 +212,7 @@ human_context:
   where: Any CI/CD platform (GitHub, GitLab, Bitbucket)
   when: During CI/CD test runs
   how: Test-driven development
-  additional_context: Part of Golden Triangle (.faf + repo + .taf). Tracks test
-    runs permanently in git. Supports Jest, works as CLI or GitHub Action.
-    Platform-agnostic core - runs on ANY CI/CD with Node.js.
+  additional_context: Part of Golden Triangle (.faf + repo + .taf). Tracks test runs permanently in git. Supports Jest, works as CLI or GitHub Action. Platform-agnostic core - runs on ANY CI/CD with Node.js.
   context_score: 0
   total_prd_score: 65
   success_rate: 50%

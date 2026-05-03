@@ -1,3 +1,5 @@
+<!-- faf: faf-taf-git | TypeScript | Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD -->
+
 # 🏎️ CLAUDE.md - faf-taf-git Persistent Context & Intelligence
 
 ## PROJECT STATE: GOOD 🚀
