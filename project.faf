@@ -46,7 +46,7 @@ project:
     file: Testing Audit File (.taf)
     feed: Testing Activity Feed (live updates)
   main_language: TypeScript
-  type: typescript
+  type: cli
   generated: 2025-10-28T01:26:05.656Z
   repository: https://github.com/Wolfe-Jam/faf-taf-git
   license: MIT
@@ -71,13 +71,14 @@ ai_instructions:
     - All TypeScript must pass strict mode
     - Test coverage required for new features
 stack:
-  frontend: None
-  css_framework: None
-  ui_library: None
-  state_management: None
-  backend: None
+  frontend: slotignored  # TAF is a CLI + GitHub Action, no frontend
+  css_framework: slotignored  # N/A for a CLI/Action
+  ui_library: slotignored  # N/A for a CLI/Action
+  state_management: slotignored  # N/A — TAF is stateless; state lives in .taf on git
+  backend: slotignored  # TAF runs in CI sandbox, not a server
   runtime: Node.js
-  database: None
+  database: slotignored  # Receipts are YAML files in git, no database
+  connection: slotignored  # No DB → no connection layer
   build: TypeScript Compiler
   package_manager: npm
   api_type: REST
@@ -208,7 +209,7 @@ tags:
     - open-source
   user_defined: null
 human_context:
-  who: Development teams
+  who: Development teams adopting test-receipt provenance — open-source maintainers proving honest test history, regulated industries (SOC 2 / ISO / HIPAA) needing append-only audit trails, supply-chain verifiers proving tests ran before artifacts shipped, AI-agent reviewers verifying agent code passes tests consistently, and FAF-ecosystem projects completing the CAR Framework (Claim → Audit → Receipt).
   what: TAF file updates in CI/CD pipelines
   why: Improve development efficiency
   where: Any CI/CD platform (GitHub, GitLab, Bitbucket)
