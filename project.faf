@@ -4,7 +4,7 @@ ai_score: 65%
 ai_confidence: MODERATE
 ai_value: 30_seconds_replaces_20_minutes_of_questions
 ai_tldr:
-  project: faf-taf-git v2.1.1 - Git-tracked testing timelines for ANY CI/CD
+  project: faf-taf-git v2.1.1 - A Test Receipt Printer for git. Proof over time, cannot be gamed.
   stack: TypeScript CLI + GitHub Action (pre-capture architecture)
   quality_bar: ZERO_ERRORS_F1_STANDARDS
   status: PRODUCTION_READY (working in faf-cli repo)
@@ -12,7 +12,7 @@ ai_tldr:
   current_focus: Ecosystem adoption and user onboarding
   your_role: Support users, fix bugs, add test framework support
 instant_context:
-  what_building: Platform-agnostic CLI + GitHub Action for TAF updates
+  what_building: A Test Receipt Printer for git. CLI runs on any CI/CD; prints append-only test receipts to .taf, kept in git. FAF-aware optionally — receipts can carry FAF score/identity, but TAF works on any repo.
   tech_stack: TypeScript
   main_language: TypeScript
   deployment: npm + GitHub Actions Marketplace
@@ -238,7 +238,7 @@ faf_dna:
   birth_date: 2025-10-28T01:26:05.692Z
   current_score: 50
 projectName: faf-taf-git
-projectGoal: Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD
+projectGoal: A Test Receipt Printer for git — append-only test receipts on every CI run. Proof over time, cannot be gamed.
 generated: 2026-02-17T20:14:09.215Z
 last_major_update: v2.0.4 (2026-02-17)
 production_status: Working in faf-cli repository
