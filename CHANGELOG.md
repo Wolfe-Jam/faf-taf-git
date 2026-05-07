@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.1.1 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.1.2 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.1.2] - 2026-05-06
+
+### Fixed
+- **`switchToTargetBranch` no longer fails on first run when consumer repo has no `.taf` seed.** Previously, the orphan-create path called `git add .taf` unconditionally; if no seed existed on the source branch, that step failed with `fatal: pathspec '.taf' did not match any files` (exit code 128) and the whole TAF Receipt step errored out.
+- New behavior: when no seed is present, the action now writes a minimal valid YAML seed (`format_version`, `project`, `created`, `test_history: []`) so the first commit on the target branch always succeeds. `updateTafFile` then populates `test_history` on the same run.
+- Affects any consumer using `target-branch:` for the first time without a pre-seeded `.taf` on `main`. Previous workaround (manually committing a `.taf` seed) is no longer required.
 
 ## [2.0.4] - 2026-02-17
 

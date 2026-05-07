@@ -41,11 +41,24 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
     await exec.exec('git', ['checkout', '--orphan', targetBranch], execOptions);
     await exec.getExecOutput('git', ['rm', '-rf', '.'], { ...execOptions, ignoreReturnCode: true });
 
-    // Seed with existing .taf from source branch
     const tafPath = path.join(cwd, '.taf');
+
     if (tafSeed) {
+      // Seed with existing .taf from source branch
       fs.writeFileSync(tafPath, tafSeed, 'utf-8');
       core.info(`Seeded ${targetBranch} with existing .taf data`);
+    } else {
+      // No seed — create minimal valid YAML so updateTafFile can populate test_history.
+      // Without this, `git add .taf` fails with exit 128 (pathspec did not match)
+      // when consumer repo has no .taf on source branch.
+      const projectName = path.basename(cwd);
+      const minimal =
+        `format_version: 1.0.0\n` +
+        `project: ${projectName}\n` +
+        `created: ${new Date().toISOString()}\n` +
+        `test_history: []\n`;
+      fs.writeFileSync(tafPath, minimal, 'utf-8');
+      core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
     }
 
     await exec.exec('git', ['add', '.taf'], execOptions);
