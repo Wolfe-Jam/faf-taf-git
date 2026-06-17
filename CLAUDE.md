@@ -1,33 +1,38 @@
-<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: claim=project.faf | score=100 | family=TAF | siblings=README.md,.taf,CHANGELOG.md -->
+<!-- faf:start -->
+<!-- faf: faf-taf-git | TypeScript | cli | Platform-agnostic CLI + GitHub Action for TAF updates -->
+<!-- faf: claim=project.faf | family=FAF -->
 
-# 🏎️ CLAUDE.md - faf-taf-git Persistent Context & Intelligence
+# CLAUDE.md — faf-taf-git
 
-## PROJECT STATE: GOOD 🚀
-**Current Position:** Platform-agnostic TAF (Testing Activity Feed) updater - works in ANY CI/CD
-**Tyre Compound:** ULTRASOFT C5 (Maximum Performance)
+## What This Is
+
+Platform-agnostic CLI + GitHub Action for TAF updates
+
+## Stack
+
+- **Language:** TypeScript
+- **Runtime:** Node.js
+- **Build:** TypeScript Compiler
+- **Package Manager:** npm
+- **Api Type:** REST
+- **Hosting:** npm Registry
+- **Cicd:** GitHub Actions
+- **TargetUser:** developers
+- **CoreProblem:** understanding project
+- **MissionPurpose:** project documentation
+- **PackageManager:** npm/yarn/pnpm
+- **MainLanguage:** JavaScript/TypeScript
+
+## Context
+
+- **Who:** Development teams adopting test-receipt provenance — open-source maintainers proving honest test history, regulated industries (SOC 2 / ISO / HIPAA) needing append-only audit trails, supply-chain verifiers proving tests ran before artifacts shipped, AI-agent reviewers verifying agent code passes tests consistently, and FAF-ecosystem projects completing the CAR Framework (Claim → Audit → Receipt).
+- **What:** TAF file updates in CI/CD pipelines
+- **Why:** Improve development efficiency
+- **Where:** Any CI/CD platform (GitHub, GitLab, Bitbucket)
+- **When:** During CI/CD test runs
+- **How:** Test-driven development
 
 ---
 
-## 🎨 CORE CONTEXT
-
-### Project Identity
-- **Name:** faf-taf-git
-- **Stack:** TypeScript
-- **Quality:** F1-INSPIRED (Championship Performance)
-
-### Technical Architecture
-- **What Building:** Platform-agnostic CLI + GitHub Action for TAF updates
-- **Main Language:** TypeScript
-
-### 📊 Context Quality Status
-- **Overall Assessment:** Good
-- **Last Updated:** 2026-02-17
-
----
-
-**STATUS: BI-SYNC ACTIVE 🔗 - Synchronized with .faf context!**
-
-*Last Sync: 2026-02-17T20:14:09.496Z*
-*Sync Engine: F1-Inspired Software Engineering*
-*🏎️⚡️_championship_sync*
+*STATUS: BI-SYNC ACTIVE — 2026-06-17T12:16:31.736Z*
+<!-- faf:end -->
