@@ -43,7 +43,7 @@ exports.renderBadgeSvg = renderBadgeSvg;
 exports.generateBadge = generateBadge;
 const fs = __importStar(require("fs"));
 const yaml = __importStar(require("yaml"));
-const COLOR_PASS = '#00D4D4'; // Cyan sweetspot
+const COLOR_PASS = '#003366'; // Navy blue (deep — white-text contrast; cyan was too light)
 const COLOR_FAIL = '#E32400'; // Red
 const COLOR_NONE = '#9F9F9F'; // Gray
 /**

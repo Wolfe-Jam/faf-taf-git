@@ -19,7 +19,7 @@ function createTempDir(prefix: string): string {
 
 describe('SVG Rendering', () => {
   test('should produce valid SVG with label and value', () => {
-    const svg = renderBadgeSvg('TAF', '10/10 passing', '#00D4D4');
+    const svg = renderBadgeSvg('TAF', '10/10 passing', '#003366');
 
     expect(svg).toContain('<svg');
     expect(svg).toContain('</svg>');
@@ -28,13 +28,13 @@ describe('SVG Rendering', () => {
   });
 
   test('should include correct color', () => {
-    const svg = renderBadgeSvg('TAF', '10/10 passing', '#00D4D4');
+    const svg = renderBadgeSvg('TAF', '10/10 passing', '#003366');
 
-    expect(svg).toContain('fill="#00D4D4"');
+    expect(svg).toContain('fill="#003366"');
   });
 
   test('should include accessibility attributes', () => {
-    const svg = renderBadgeSvg('TAF', '5/5 passing', '#00D4D4');
+    const svg = renderBadgeSvg('TAF', '5/5 passing', '#003366');
 
     expect(svg).toContain('role="img"');
     expect(svg).toContain('aria-label="TAF: 5/5 passing"');
@@ -84,7 +84,7 @@ describe('Badge Generation', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  test('should generate cyan badge when all tests pass', () => {
+  test('should generate navy badge when all tests pass', () => {
     const tafPath = path.join(tempDir, '.taf');
     fs.writeFileSync(tafPath, `format_version: 1.0.0
 project: test
@@ -101,7 +101,7 @@ test_history:
 
     expect(result.success).toBe(true);
     expect(result.svg).toContain('38/38 passing');
-    expect(result.svg).toContain('#00D4D4');
+    expect(result.svg).toContain('#003366');
   });
 
   test('should generate red badge when tests fail', () => {
@@ -172,7 +172,7 @@ test_history:
 
     expect(result.success).toBe(true);
     expect(result.svg).toContain('10/10 passing');
-    expect(result.svg).toContain('#00D4D4');
+    expect(result.svg).toContain('#003366');
   });
 
   test('should use custom label', () => {
