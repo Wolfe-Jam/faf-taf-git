@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.2.1 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.2.2 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.2.2] - 2026-06-25
+
+Marketplace metadata — surfaces the pinned brand: **TAF = Testing AI Format** (sibling of FAF, independent). Refreshes the GitHub Action name + description and adds the README definition line. No code change — same `dist/` as 2.2.1.
 
 ## [2.2.1] - 2026-06-17
 
