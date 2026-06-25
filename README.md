@@ -6,6 +6,8 @@
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
 
+**TAF — Testing AI Format.** Sibling of FAF, independent. The Test Receipt Printer for git.
+
 > **Q: What does TAF do?** A: It prints Receipts.
 > **Q: What sort of Receipts?** A: Test Receipts.
 > **Q: Why do I need Test Receipts?** A: Proof over time.
