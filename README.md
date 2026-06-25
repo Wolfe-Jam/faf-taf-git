@@ -6,6 +6,10 @@
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
 
+## Proof Over Time
+
+Anyone can get green **once.** TAF proves it **over time** — an append-only Test Receipt on every CI run, git-anchored and **cannot be gamed.** Solid engineering shows in the timeline; everything else gets exposed.
+
 **TAF — Testing AI Format.** Sibling of FAF, independent. The Test Receipt Printer for git.
 
 > **Q: What does TAF do?** A: It prints Receipts.
