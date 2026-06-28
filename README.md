@@ -44,6 +44,8 @@ Anyone can get green **once.** TAF proves it **over time** — an append-only Te
 
 **Every field maps to a real receipt:** timestamp = receipt date, tests = itemized lines, result = total, trigger = cashier/register, run_id = receipt number, project = vendor, format_version = receipt template.
 
+📄 **Full receipt schema:** [`RECEIPT-FORMAT.md`](./RECEIPT-FORMAT.md) — the pinned `.taf` format (fields, the cannot-be-gamed mechanism, where it fits vs JUnit/TAP/SLSA).
+
 **What you get:**
 - **Proof over time** — longitudinal evidence, not snapshots
 - **Pattern detection** — pass-rate trends, regression vs new failure
