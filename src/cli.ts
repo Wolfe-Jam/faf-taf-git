@@ -81,7 +81,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       return {
         success: false,
         tafUpdated: false,
-        error: 'Could not parse test output. Supported: Jest, Vitest.',
+        error: 'Could not parse test output. Supported: Bun, WJTTC, Jest, Vitest.',
       };
     }
 
@@ -182,18 +182,7 @@ function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger:
  */
 function handleBadgeCommand(args: string[]): void {
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`
-faf-taf-git badge - Generate SVG badge from .taf history
-
-USAGE:
-  npx faf-taf-git badge [OPTIONS]
-
-OPTIONS:
-  --output <path>     Write SVG to file (default: stdout)
-  --label <text>      Badge label (default: TAF)
-  --taf <path>        Path to .taf file (default: .taf)
-  --help, -h          Show this help
-`);
+    console.log(`\nfaf-taf-git badge - Generate SVG badge from .taf history\n\nUSAGE:\n  npx faf-taf-git badge [OPTIONS]\n\nOPTIONS:\n  --output <path>     Write SVG to file (default: stdout)\n  --label <text>      Badge label (default: TAF)\n  --taf <path>        Path to .taf file (default: .taf)\n  --help, -h          Show this help\n`);
     process.exit(0);
   }
 
@@ -247,46 +236,7 @@ async function main() {
 
   // Show help
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`
-faf-taf-git - The Git-Native Receipt Printer
-
-USAGE:
-  npm test 2>&1 | tee test-output.txt
-  npx faf-taf-git --file test-output.txt [OPTIONS]
-
-COMMANDS:
-  badge               Generate a shields.io-style SVG badge from .taf
-
-OPTIONS:
-  --file <path>       Path to test output file (required)
-  --commit            Auto-commit .taf changes to git
-  --message <msg>     Custom commit message
-  --cwd <dir>         Working directory (default: current)
-  --verbose, -v       Verbose output
-  --help, -h          Show this help
-
-EXAMPLES:
-  # Run tests, capture output, generate receipt
-  npm test 2>&1 | tee test-output.txt
-  npx faf-taf-git --file test-output.txt
-
-  # Auto-commit changes
-  npx faf-taf-git --file test-output.txt --commit
-
-  # Custom commit message
-  npx faf-taf-git --file test-output.txt --commit --message "test: update TAF"
-
-  # Generate badge
-  npx faf-taf-git badge --output badge.svg
-
-PLATFORM SUPPORT:
-  Works in ANY CI/CD that runs Node.js:
-  GitHub Actions, GitLab CI, Jenkins, CircleCI,
-  Bitbucket Pipelines, Azure Pipelines, local dev
-
-LEARN MORE:
-  https://github.com/Wolfe-Jam/faf-taf-git
-`);
+    console.log(`\nfaf-taf-git - The Git-Native Receipt Printer\n\nUSAGE:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt [OPTIONS]\n\n  # WJTTC / pc-ai bar\n  node tests/wjttc/run-wjttc.mjs 2>&1 | tee wjttc-out.txt\n  npx faf-taf-git --file wjttc-out.txt\n\nCOMMANDS:\n  badge               Generate a shields.io-style SVG badge from .taf\n\nOPTIONS:\n  --file <path>       Path to test output file (required)\n  --commit            Auto-commit .taf changes to git\n  --message <msg>     Custom commit message\n  --cwd <dir>         Working directory (default: current)\n  --verbose, -v       Verbose output\n  --help, -h          Show this help\n\nPARSERS:\n  Bun, WJTTC (pc-ai bar), Jest, Vitest\n\nEXAMPLES:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt\n\n  npx faf-taf-git --file test-output.txt --commit\n\n  npx faf-taf-git badge --output badge.svg\n\nPLATFORM SUPPORT:\n  Works in ANY CI/CD that runs Node.js:\n  GitHub Actions, GitLab CI, Jenkins, CircleCI,\n  Bitbucket Pipelines, Azure Pipelines, local dev\n\nLEARN MORE:\n  https://github.com/Wolfe-Jam/faf-taf-git\n`);
     process.exit(0);
   }
 
