@@ -1,6 +1,6 @@
 /**
  * The built Action bundle — dist/index.js, what action.yml runs — loads and
- * reaches the parse step under this Node (CI runs 20.x, the runtime
+ * reaches the parse step under this Node (CI runs 24.x, the runtime
  * action.yml declares).
  *
  * An open-ended `overrides.undici: ">=6.28.0"` resolved undici 8 (Node >=

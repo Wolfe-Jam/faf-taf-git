@@ -10,15 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0] - 2026-09-14
 
-WJTTC parser — TAF now receipts a WJTTC run directly, no Jest shim.
+WJTTC parser — TAF now receipts a WJTTC run directly, no Jest shim. The Action now runs on `node24`.
 
 ### Added
 - **WJTTC parser** (`parseWjttcOutput`) — reads both WJTTC output forms: the `--json` suite (`"suite": "pc-ai-wjttc"`) and the human log (`pc-ai WJTTC` + `N/N passed`). Wired second in the dispatcher, after Bun.
 - **`RECEIPT-FORMAT.md`** — the canonical `.taf` receipt format spec, linked from the README.
 
+### Changed
+- **Action runtime `node20` → `node24`.** GitHub-hosted runners already run node20 actions on Node 24 and warn on every run ("Node.js 20 is deprecated"); declaring `node24` matches what runs and drops the warning. Self-hosted runners need a runner release that supports `node24`.
+
 ### Fixed
 - **CLI and Action parse-error text** now name every supported parser: Bun, WJTTC, Jest, Vitest. Both are built from the parser table itself, so a new parser shows up in both (the CLI was missing Bun; the Action said "Jest, Vitest").
-- **undici** — `@actions/github` pulled a vulnerable undici 5.x; `overrides.undici ^6.28.0` pins past it on the 6.x line, which runs on Node 20 as `action.yml` declares.
+- **undici** — `@actions/github` pulled a vulnerable undici 5.x; `overrides.undici ^6.28.0` pins past it, on the 6.x line `@actions/http-client` declares.
 
 ## [2.2.2] - 2026-06-25
 

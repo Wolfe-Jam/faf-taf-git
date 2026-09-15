@@ -206,7 +206,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          node-version: '24.x'
 
       - name: Install dependencies
         run: npm ci
@@ -218,7 +218,7 @@ jobs:
         run: npm test 2>&1 | tee test-output.txt
 
       - name: Generate TAF Receipt
-        uses: Wolfe-Jam/faf-taf-git@v2.0.4
+        uses: Wolfe-Jam/faf-taf-git@v2.3.0
         with:
           test-output-file: test-output.txt
           auto-commit: 'true'
@@ -363,7 +363,7 @@ Options:
 ```yaml
 - name: Generate TAF Receipt
   id: taf
-  uses: Wolfe-Jam/faf-taf-git@v2.0.4
+  uses: Wolfe-Jam/faf-taf-git@v2.3.0
   with:
     test-output-file: test-output.txt
 
@@ -480,7 +480,7 @@ node dist/cli.js --help
 ```yaml
 - run: npm test 2>&1 | tee test-output.txt
 
-- uses: Wolfe-Jam/faf-taf-git@v2.0.4
+- uses: Wolfe-Jam/faf-taf-git@v2.3.0
   with:
     test-output-file: test-output.txt
 ```
@@ -503,7 +503,7 @@ v2.0.0 uses **pre-capture pattern** - separate test execution from receipt gener
 
 1. Update workflow to use `test-output-file` instead of `test-command`
 2. Add test output capture step: `npm test 2>&1 | tee test-output.txt`
-3. Update version to `@v2.0.4`
+3. Update version to `@v2.3.0`
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
