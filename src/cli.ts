@@ -9,7 +9,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTestOutput } from './parsers';
+import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
 import { updateTafFile } from './taf-core';
 import { generateBadge } from './badge';
 
@@ -81,7 +81,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       return {
         success: false,
         tafUpdated: false,
-        error: 'Could not parse test output. Supported: Bun, WJTTC, Jest, Vitest.',
+        error: UNPARSEABLE_OUTPUT,
       };
     }
 

@@ -9,7 +9,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTestOutput } from './parsers';
+import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
 import { updateTafFile } from './taf-core';
 
 /**
@@ -138,7 +138,7 @@ async function run(): Promise<void> {
     const testResults = parseTestOutput(testOutput);
 
     if (!testResults) {
-      core.setFailed('Could not parse test output. Supported: Jest, Vitest.');
+      core.setFailed(UNPARSEABLE_OUTPUT);
       return;
     }
 

@@ -82,7 +82,7 @@ async function runTafGit(options = {}) {
             return {
                 success: false,
                 tafUpdated: false,
-                error: 'Could not parse test output. Supported: Bun, WJTTC, Jest, Vitest.',
+                error: parsers_1.UNPARSEABLE_OUTPUT,
             };
         }
         if (verbose) {

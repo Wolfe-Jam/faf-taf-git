@@ -17,8 +17,8 @@ WJTTC parser — TAF now receipts a WJTTC run directly, no Jest shim.
 - **`RECEIPT-FORMAT.md`** — the canonical `.taf` receipt format spec, linked from the README.
 
 ### Fixed
-- **CLI parse-error text** now names every supported parser: Bun, WJTTC, Jest, Vitest (Bun was missing).
-- **undici floor** — `@actions/github` pulled a vulnerable undici; `overrides.undici >=6.28.0` pins past it.
+- **CLI and Action parse-error text** now name every supported parser: Bun, WJTTC, Jest, Vitest. Both are built from the parser table itself, so a new parser shows up in both (the CLI was missing Bun; the Action said "Jest, Vitest").
+- **undici** — `@actions/github` pulled a vulnerable undici 5.x; `overrides.undici ^6.28.0` pins past it on the 6.x line, which runs on Node 20 as `action.yml` declares.
 
 ## [2.2.2] - 2026-06-25
 
