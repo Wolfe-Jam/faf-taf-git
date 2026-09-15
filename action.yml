@@ -1,5 +1,5 @@
 name: 'TAF — Testing AI Format'
-description: 'TAF (Testing AI Format) — the Test Receipt Printer for git. Prints a Test Receipt to .taf on every CI run: append-only, cannot be gamed. Proof over time.'
+description: 'A Test Receipt Printer for git. Every CI run prints a receipt to .taf — append-only, cannot be gamed. Proof over time.'
 author: 'wolfejam'
 
 branding:

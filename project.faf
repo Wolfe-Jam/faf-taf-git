@@ -182,7 +182,7 @@ resources:
   discussions: https://github.com/Wolfe-Jam/faf/discussions
 state:
   phase: production
-  version: 2.3.0
+  version: 2.3.1
   focus: ecosystem_adoption
   status: production_ready
   achievements:
