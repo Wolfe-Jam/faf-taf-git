@@ -1,0 +1,53 @@
+version: "1.0"
+agent:
+  name: faf-taf-git
+  displayName: faf-taf-git
+  id: urn:air:faf.one:agent:faf-taf-git
+  version: 2.3.1
+  description: "A Test Receipt Printer for git: each CI run appends a receipt with the test counts and result to a .taf file kept in git."
+  homepage: https://faf.one
+capabilities:
+  - name: Print a receipt
+    type: tool
+    description: Append one Test Receipt (timestamp, counts, result, trigger) to .taf on each CI run
+    tags:
+      - print a receipt
+  - name: Read test output
+    type: tool
+    description: Parse Jest, Vitest, Bun and WJTTC test output into passed, failed and total
+    tags:
+      - read test output
+  - name: Receipts branch
+    type: tool
+    description: Push receipts to a dedicated branch such as taf-receipts, created on the first run
+    tags:
+      - receipts branch
+  - name: Auto-commit
+    type: tool
+    description: Commit the .taf update from CI, with an optional custom message
+    tags:
+      - auto-commit
+  - name: Badge
+    type: tool
+    description: Generate an SVG badge from the latest receipt in .taf
+    tags:
+      - badge
+  - name: Action outputs
+    type: tool
+    description: Expose result, passed, failed, total and taf-updated to later workflow steps
+    tags:
+      - action outputs
+endpoints:
+  - protocol: github-action
+    transport: http
+    location: Wolfe-Jam/faf-taf-git
+metadata:
+  cards:
+    domain: faf.one
+    examples:
+      - How do I keep a record of my test results on every CI run?
+      - How do I add Test Receipts to a GitHub Actions workflow?
+      - How do I make a test badge from my .taf history?
+    packages:
+      - registryType: npm
+        identifier: faf-taf-git
