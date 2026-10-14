@@ -5,6 +5,7 @@
 
 [![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
+[![Business card · Get yours →](https://wolfe-jam.github.io/agent-business-card/badge.svg)](https://wolfe-jam.github.io/agent-business-card/?repo=Wolfe-Jam/faf-taf-git)
 
 ## Proof Over Time
 
