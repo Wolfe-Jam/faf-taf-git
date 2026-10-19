@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Keeps workflow `uses:` pins current (e.g. Wolfe-Jam/faf-taf-git) so they
+  # don't drift behind new releases. Security alerts don't need this file.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
