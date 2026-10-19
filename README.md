@@ -68,7 +68,7 @@ Anyone can get green **once.** TAF proves it **over time** — an append-only Te
 - Open source projects (prove your tests pass)
 - Regulated industries (auditable test history)
 - AI-augmented development (give AI your test timeline)
-- Championship engineering (F1-grade accountability)
+- Engineering accountability (every CI run on the record)
 
 ---
 
@@ -557,6 +557,6 @@ This tool implements a paradigm shift:
 
 `.taf` is about accountability. Proof that your code works. Tracked over time. Visible to everyone.
 
-**Built with championship standards. F1-inspired engineering. Methodically tested.**
+**Built with championship standards. Methodically tested.**
 
 *Platform-agnostic core. Works everywhere. Trust the format.*
