@@ -149,6 +149,7 @@ async function run(): Promise<void> {
     core.setOutput('passed', testResults.passed.toString());
     core.setOutput('failed', testResults.failed.toString());
     core.setOutput('total', testResults.total.toString());
+    core.setOutput('skipped', (testResults.skipped ?? 0).toString());
 
     // If target-branch is set, save .taf seed and switch branches
     let tafSeed: string | null = null;

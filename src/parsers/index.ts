@@ -7,20 +7,25 @@
 import { TestResults } from './jest';
 import { parseBunOutput } from './bun';
 import { parseJestOutput } from './jest';
+import { parseJunitOutput } from './junit';
 import { parseVitestOutput } from './vitest';
 import { parseWjttcOutput } from './wjttc';
 
 export { TestResults } from './jest';
+export { parseJunitOutput } from './junit';
 export { parseWjttcOutput } from './wjttc';
 
 /**
  * Every parser, in the order parseTestOutput tries them. Order matters:
- * 1. Bun — `Ran N tests across M files` is bun-unique.
- * 2. WJTTC — `pc-ai WJTTC` / suite `pc-ai-wjttc` (FAF bar; not Jest-shaped).
- * 3. Jest — `Tests: … total`.
- * 4. Vitest — `Tests  … (N)`.
+ * 1. JUnit XML — a `<testsuite>` element; first, because a report's captured
+ *    stdout can hold another runner's summary line.
+ * 2. Bun — `Ran N tests across M files` is bun-unique.
+ * 3. WJTTC — `pc-ai WJTTC` / suite `pc-ai-wjttc` (FAF bar; not Jest-shaped).
+ * 4. Jest — `Tests: … total`.
+ * 5. Vitest — `Tests  … (N)`.
  */
 const PARSERS: ReadonlyArray<readonly [name: string, parse: (output: string) => TestResults | null]> = [
+  ['JUnit XML', parseJunitOutput],
   ['Bun', parseBunOutput],
   ['WJTTC', parseWjttcOutput],
   ['Jest', parseJestOutput],
