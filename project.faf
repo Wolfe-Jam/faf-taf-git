@@ -81,11 +81,23 @@ stack:
   api_type: REST
   hosting: npm Registry
   cicd: GitHub Actions
+  monorepo_tool: slotignored
+  workspaces: slotignored
+  admin: slotignored
+  cache: slotignored
+  search: slotignored
+  storage: slotignored
   targetUser: developers
   coreProblem: understanding project
   missionPurpose: project documentation
   packageManager: npm/yarn/pnpm
   mainLanguage: JavaScript/TypeScript
+monorepo:
+  packages_count: slotignored
+  build_orchestrator: slotignored
+  versioning_strategy: slotignored
+  shared_configs: slotignored
+  remote_cache: slotignored
 cli_features:
   commands:
     - npx faf-taf-git
