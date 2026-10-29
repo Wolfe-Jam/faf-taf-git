@@ -39,6 +39,9 @@ outputs:
   total:
     description: 'Total number of tests'
 
+  skipped:
+    description: 'Number of tests skipped'
+
   taf-updated:
     description: 'Whether .taf file was updated (true/false)'
 

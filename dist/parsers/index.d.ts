@@ -5,6 +5,7 @@
  */
 import { TestResults } from './jest';
 export { TestResults } from './jest';
+export { parseJunitOutput } from './junit';
 export { parseWjttcOutput } from './wjttc';
 export declare const SUPPORTED_PARSERS: readonly string[];
 /** What the CLI and the Action report when no parser matches. */

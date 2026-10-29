@@ -5,22 +5,28 @@
  * Tries each framework parser in order until one succeeds.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UNPARSEABLE_OUTPUT = exports.SUPPORTED_PARSERS = exports.parseWjttcOutput = void 0;
+exports.UNPARSEABLE_OUTPUT = exports.SUPPORTED_PARSERS = exports.parseWjttcOutput = exports.parseJunitOutput = void 0;
 exports.parseTestOutput = parseTestOutput;
 const bun_1 = require("./bun");
 const jest_1 = require("./jest");
+const junit_1 = require("./junit");
 const vitest_1 = require("./vitest");
 const wjttc_1 = require("./wjttc");
+var junit_2 = require("./junit");
+Object.defineProperty(exports, "parseJunitOutput", { enumerable: true, get: function () { return junit_2.parseJunitOutput; } });
 var wjttc_2 = require("./wjttc");
 Object.defineProperty(exports, "parseWjttcOutput", { enumerable: true, get: function () { return wjttc_2.parseWjttcOutput; } });
 /**
  * Every parser, in the order parseTestOutput tries them. Order matters:
- * 1. Bun — `Ran N tests across M files` is bun-unique.
- * 2. WJTTC — `pc-ai WJTTC` / suite `pc-ai-wjttc` (FAF bar; not Jest-shaped).
- * 3. Jest — `Tests: … total`.
- * 4. Vitest — `Tests  … (N)`.
+ * 1. JUnit XML — a `<testsuite>` element; first, because a report's captured
+ *    stdout can hold another runner's summary line.
+ * 2. Bun — `Ran N tests across M files` is bun-unique.
+ * 3. WJTTC — `pc-ai WJTTC` / suite `pc-ai-wjttc` (FAF bar; not Jest-shaped).
+ * 4. Jest — `Tests: … total`.
+ * 5. Vitest — `Tests  … (N)`.
  */
 const PARSERS = [
+    ['JUnit XML', junit_1.parseJunitOutput],
     ['Bun', bun_1.parseBunOutput],
     ['WJTTC', wjttc_1.parseWjttcOutput],
     ['Jest', jest_1.parseJestOutput],

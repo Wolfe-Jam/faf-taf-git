@@ -3,7 +3,7 @@ agent:
   name: faf-taf-git
   displayName: faf-taf-git
   id: urn:air:faf.one:agent:faf-taf-git
-  version: 2.3.1
+  version: 2.4.0
   description: "A Test Receipt Printer for git: each CI run appends a receipt with the test counts and result to a .taf file kept in git."
   homepage: https://faf.one
 capabilities:

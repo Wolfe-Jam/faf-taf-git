@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.3.1 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.4.0 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.4.0] - 2026-10-29
+
+JUnit XML parser: TAF now reads the report format most test runners can write, so Python, Rust, Go, Java and .NET projects get receipts with no conversion script.
+
+### Added
+- **JUnit XML parser** (`parseJunitOutput`). Pass a JUnit XML report as `test-output-file`. Handles a `<testsuites>` root with or without totals, a single `<testsuite>`, nested suites (counted once), and suites with no counts (the `<testcase>` elements are counted). Failures and errors count as failed; skipped and disabled count as skipped. Tried first, because a report's captured stdout can hold another runner's summary line. Checked against a real pytest report: 202 passed, 4 skipped, the same as pytest printed.
+- **`skipped` Action output.** The README listed it; the Action now sets it.
+
+### Changed
+- **README rewritten in plain English**, with a recommended workflow: failed runs get a `FAILED` receipt (tests run with `continue-on-error`, then the job fails after the receipt), receipts on `main` only, one test run.
+- CLI `--help` lists JUnit XML among the parsers.
 
 ## [2.3.1] - 2026-09-15
 
