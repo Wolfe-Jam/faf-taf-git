@@ -1,38 +1,30 @@
 <!-- faf:start -->
-<!-- faf: faf-taf-git | TypeScript | cli | Platform-agnostic CLI + GitHub Action for TAF updates -->
+<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git. Every CI run prints a receipt to .taf: append-only, timestamped, kept in git. Proof over time. -->
 <!-- faf: claim=project.faf | family=FAF -->
 
 # CLAUDE.md — faf-taf-git
 
 ## What This Is
 
-Platform-agnostic CLI + GitHub Action for TAF updates
+A Test Receipt Printer for git. Every CI run prints a receipt to .taf: append-only, timestamped, kept in git. Proof over time.
 
 ## Stack
 
 - **Language:** TypeScript
-- **Runtime:** Node.js
-- **Build:** TypeScript Compiler
-- **Package Manager:** npm
-- **API:** REST
-- **Hosting:** npm Registry
+- **Hosting:** npm registry + GitHub Actions Marketplace
+- **Build:** TypeScript (tsc)
 - **CI/CD:** GitHub Actions
-- **TargetUser:** developers
-- **CoreProblem:** understanding project
-- **MissionPurpose:** project documentation
-- **PackageManager:** npm/yarn/pnpm
-- **MainLanguage:** JavaScript/TypeScript
 
 ## Context
 
-- **Who:** Development teams adopting test-receipt provenance — open-source maintainers proving honest test history, regulated industries (SOC 2 / ISO / HIPAA) needing append-only audit trails, supply-chain verifiers proving tests ran before artifacts shipped, AI-agent reviewers verifying agent code passes tests consistently, and FAF-ecosystem projects completing the CAR Framework (Claim → Audit → Receipt).
-- **What:** TAF file updates in CI/CD pipelines
-- **Why:** Improve development efficiency
-- **Where:** Any CI/CD platform (GitHub, GitLab, Bitbucket)
-- **When:** During CI/CD test runs
-- **How:** Test-driven development
+- **Who:** Maintainers and teams who want proof their tests kept passing on main, and the reviewers, auditors and AI agents who check it
+- **What:** A Test Receipt Printer for git. Every CI run prints a receipt to .taf: append-only, timestamped, kept in git. Proof over time.
+- **Why:** Test results vanish when CI logs expire. Receipts stay in git, so anyone can look back and check whether main was green before a release.
+- **Where:** https://github.com/Wolfe-Jam/faf-taf-git
+- **When:** v2.4.0 (2026-10-29), JUnit XML parser; live since v1.0.0 (2025-10-27)
+- **How:** Run tests, save the output (or a JUnit XML report), then `uses: Wolfe-Jam/faf-taf-git@v2.4.0` with `target-branch: taf-receipts`. Anywhere else: `npx faf-taf-git --file test-output.txt --commit`. The taf-receipts branch only grows: never rewrite it.
 
 ---
 
-*STATUS: SYNC ACTIVE — 2026-10-29T21:20:15.784Z*
+*STATUS: SYNC ACTIVE — 2026-10-29T21:43:51.901Z*
 <!-- faf:end -->
