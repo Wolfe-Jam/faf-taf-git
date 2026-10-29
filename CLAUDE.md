@@ -14,9 +14,9 @@ Platform-agnostic CLI + GitHub Action for TAF updates
 - **Runtime:** Node.js
 - **Build:** TypeScript Compiler
 - **Package Manager:** npm
-- **Api Type:** REST
+- **API:** REST
 - **Hosting:** npm Registry
-- **Cicd:** GitHub Actions
+- **CI/CD:** GitHub Actions
 - **TargetUser:** developers
 - **CoreProblem:** understanding project
 - **MissionPurpose:** project documentation
@@ -34,5 +34,5 @@ Platform-agnostic CLI + GitHub Action for TAF updates
 
 ---
 
-*STATUS: BI-SYNC ACTIVE — 2026-06-17T12:16:31.736Z*
+*STATUS: SYNC ACTIVE — 2026-10-29T21:20:15.784Z*
 <!-- faf:end -->
