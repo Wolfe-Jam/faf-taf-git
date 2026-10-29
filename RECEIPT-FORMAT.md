@@ -15,7 +15,7 @@ A **Receipt Printer for git.** Every CI run prints one receipt — timestamp, co
 - **Git-native + portable.** The receipt lives *in the repo*, versioned — it survives a CI-vendor migration, which vendor-locked run history does not.
 - **The unique value:** a one-time green is a snapshot (gameable); *"1,847 receipts over 14 months, none missing"* is proof. The format exists to make that timeline portable and falsifiable — nothing more. Thinness is the point.
 
-## Cannot be gamed — tamper-*evident* (stated honestly)
+## Tamper-*evident*, not tamper-proof
 
 Three mechanisms make tampering **visible**:
 - **Edits** → the commit SHA changes; a rewritten receipt no longer matches its commit.
