@@ -6,6 +6,19 @@
   "bin": {
     "faf-taf-git": "dist/cli.js"
   },
+  "files": [
+    "dist/**/*",
+    "!dist/index.js",
+    "!dist/index.js.map",
+    "!dist/bundle",
+    "!dist/sourcemap-register.js",
+    "!dist/licenses.txt",
+    "README.md",
+    "RECEIPT-FORMAT.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "project.faf"
+  ],
   "scripts": {
     "build": "tsc && ncc build src/index.ts -o dist --source-map --license licenses.txt",
     "test": "jest"
