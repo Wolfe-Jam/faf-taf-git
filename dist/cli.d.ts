@@ -28,3 +28,8 @@ export interface CLIResult {
  * Main CLI function - reads test output from file
  */
 export declare function runTafGit(options?: CLIOptions): Promise<CLIResult>;
+/**
+ * The installed package's version. package.json sits one level above both
+ * src/ (tests) and dist/ (the published bin).
+ */
+export declare function cliVersion(): string;

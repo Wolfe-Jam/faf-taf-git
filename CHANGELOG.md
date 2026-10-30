@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **`--version` / `-V`** print the package version and exit 0. Before, `faf-taf-git --version` fell through to "No test output file specified" and exit 1, so a stranger's first check failed (found by a cold install of the published 2.4.0). `-v` is still `--verbose`. `tests/cli-version.test.ts`.
+
 ## [2.4.0] - 2026-10-29
 
 JUnit XML parser: TAF now reads the report format most test runners can write, so Python, Rust, Go, Java and .NET projects get receipts with no conversion script.
