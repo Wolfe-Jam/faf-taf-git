@@ -76,7 +76,7 @@ jobs:
 
       - name: Print the receipt
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: Wolfe-Jam/faf-taf-git@v2.4.0
+        uses: Wolfe-Jam/faf-taf-git@v2.4.1
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts
