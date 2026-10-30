@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **undici 6.28.1 → 6.29.1** in the lockfile and the rebuilt Action bundle (`dist/index.js`). Clears 5 Dependabot alerts (TLS certificate check bypass, denial of service). undici comes in through `@actions/core`; faf-taf-git makes no HTTP requests itself, so the risk was low, but the bundle no longer carries a known-vulnerable copy.
+
 ### Changed
 - **The npm package ships only the CLI:** a `files` list in package.json. 1.0 MB → 34 kB packed, 94 → 48 files. Out: `src/`, `tests/`, `.github/`, dev configs, and the GitHub Action bundle (`dist/index.js`), which workflows run from the git tag, never from npm. The Action itself is unchanged.
 
