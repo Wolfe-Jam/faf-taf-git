@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.4.0 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.4.1 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -8,10 +8,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.4.1] - 2026-10-30
+
+`faf-taf-git --version` answers, and the descriptions say tamper-evident, not "cannot be gamed".
 
 ### Fixed
 - **`--version` / `-V`** print the package version and exit 0. Before, `faf-taf-git --version` fell through to "No test output file specified" and exit 1, so a stranger's first check failed (found by a cold install of the published 2.4.0). `-v` is still `--verbose`. `tests/cli-version.test.ts`.
+
+### Changed
+- **Descriptions:** `package.json` (npm) and `action.yml` (GitHub Marketplace) no longer say "cannot be gamed"; they now read "append-only, timestamped, kept in git. Proof over time." The RECEIPT-FORMAT heading is "Tamper-evident, not tamper-proof", matching the README.
+- **project.faf:** rebuilt lean from the repo (267 → 57 lines), Trophy. `.faf-dna` unchanged.
+- **README recipe** pins `@v2.4.1`. The Action itself is unchanged from 2.4.0.
 
 ## [2.4.0] - 2026-10-29
 
