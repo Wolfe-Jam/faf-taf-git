@@ -1,6 +1,6 @@
 {
   "name": "faf-taf-git",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "A Test Receipt Printer for git. Every CI run prints a receipt to .taf — append-only, timestamped, kept in git. Proof over time.",
   "main": "dist/cli.js",
   "bin": {

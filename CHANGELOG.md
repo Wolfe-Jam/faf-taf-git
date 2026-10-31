@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.4.2 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.4.3 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.4.3] - 2026-10-31
+
+A receipt that loses a push race is retried instead of lost, and skipped Go tests count as skipped, not passed.
 
 ### Fixed
 - **A receipt that lost a push race is no longer lost.** Two runs finishing close together both commit on the same `taf-receipts` tip, and the second push was rejected with a warning. The Action now fetches the branch again, adds its receipt on top of the winner's, and pushes, up to 5 tries. Only with `target-branch`: that branch holds nothing but `.taf`. Nothing is force-pushed; the branch only grows. Pushing to the current branch is unchanged
