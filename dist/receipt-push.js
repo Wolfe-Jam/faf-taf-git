@@ -15,7 +15,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.pushReceipt = pushReceipt;
-async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 3) {
+async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5) {
     for (let attempt = 1; attempt <= attempts; attempt++) {
         if (attempt > 1) {
             // Another run pushed first: start again from its receipts.

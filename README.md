@@ -51,9 +51,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-concurrency:
-  group: tests-${{ github.ref }}   # one run at a time per branch, so receipts never collide
-
 jobs:
   test:
     runs-on: ubuntu-latest

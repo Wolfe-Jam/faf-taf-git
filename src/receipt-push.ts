@@ -26,7 +26,7 @@ export async function pushReceipt(
   targetBranch: string,
   message: string,
   addReceipt: () => boolean,
-  attempts = 3,
+  attempts = 5,
 ): Promise<PushResult> {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (attempt > 1) {

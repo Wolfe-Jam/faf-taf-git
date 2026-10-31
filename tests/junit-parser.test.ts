@@ -80,6 +80,23 @@ describe('JUnit XML Parser', () => {
       expect(parseJunitOutput(output)).toEqual({ total: 2, passed: 2, failed: 0, skipped: undefined, result: 'PASSED' });
     });
 
+    test('should count skipped testcases when the counts leave skipped out (gotestsum)', () => {
+      // gotestsum: the <testsuites> root has tests and failures, no skipped.
+      const output = `<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="3" failures="1" errors="0" time="0.012">
+	<testsuite tests="3" failures="1" time="0.004" name="example.com/demo" timestamp="2026-10-31T17:00:00Z">
+		<testcase classname="example.com/demo" name="TestPass" time="0.000"></testcase>
+		<testcase classname="example.com/demo" name="TestFail" time="0.000">
+			<failure message="Failed" type="">demo_test.go:9: boom</failure>
+		</testcase>
+		<testcase classname="example.com/demo" name="TestSkip" time="0.000">
+			<skipped message="demo_test.go:12: later"></skipped>
+		</testcase>
+	</testsuite>
+</testsuites>`;
+      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
+    });
+
     test('should return null for a report with zero tests', () => {
       expect(parseJunitOutput(`<testsuites><testsuite tests="0" failures="0"></testsuite></testsuites>`)).toBeNull();
     });

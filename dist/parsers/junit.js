@@ -92,6 +92,12 @@ function parseJunitOutput(output) {
     }
     if (counts.tests === 0)
         return null;
+    // Some writers leave `skipped` off their counts (gotestsum's <testsuites> root
+    // has tests and failures only), which would count every skip as a pass. The
+    // <skipped> testcases are the truth then.
+    if (counts.skipped === 0) {
+        counts.skipped = Math.min(countsFromTestcases(xml).skipped, counts.tests - counts.failed);
+    }
     const passed = Math.max(0, counts.tests - counts.failed - counts.skipped);
     return {
         total: counts.tests,

@@ -79,8 +79,8 @@ describe('pushReceipt', () => {
     const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args)); // every push rejected
     const added: string[] = [];
     const result = await pushReceipt(git, 'taf-receipts', 'receipt', () => { added.push('x'); return addLine(a, 'ra')(); });
-    expect(result).toEqual({ pushed: false, attempts: 3 });
-    expect(added).toHaveLength(2); // re-added for tries 2 and 3
+    expect(result).toEqual({ pushed: false, attempts: 5 });
+    expect(added).toHaveLength(4); // re-added for tries 2 to 5
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -89,7 +89,7 @@ describe('pushReceipt', () => {
     addLine(a, 'ra')();
     const real = gitIn(a);
     const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args));
-    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false)).toEqual({ pushed: false, attempts: 3 });
+    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false)).toEqual({ pushed: false, attempts: 5 });
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

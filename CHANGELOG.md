@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- **A receipt that lost a push race is no longer lost.** Two runs finishing close together both commit on the same `taf-receipts` tip, and the second push was rejected with a warning. The Action now fetches the branch again, adds its receipt on top of the winner's, and pushes, up to 3 tries. Only with `target-branch`: that branch holds nothing but `.taf`. Nothing is force-pushed; the branch only grows. Pushing to the current branch is unchanged
+- **A receipt that lost a push race is no longer lost.** Two runs finishing close together both commit on the same `taf-receipts` tip, and the second push was rejected with a warning. The Action now fetches the branch again, adds its receipt on top of the winner's, and pushes, up to 5 tries. Only with `target-branch`: that branch holds nothing but `.taf`. Nothing is force-pushed; the branch only grows. Pushing to the current branch is unchanged
+- **Skipped tests in a JUnit report no longer count as passed** when the report leaves `skipped` out of its counts. gotestsum (Go) writes `tests` and `failures` on its root and nothing else, so 1 pass, 1 fail and 1 skip read as 2 passed. The `<skipped>` testcases are counted instead
+
+### Changed
+- **The README recipe no longer has a `concurrency` group.** GitHub cancels a waiting run when a newer one joins the group, so a run could end with no tests and no receipt. Runs that race for the push are retried instead (above)
 
 ## [2.4.2] - 2026-10-30
 
