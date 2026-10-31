@@ -33189,6 +33189,7 @@ const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const parsers_1 = __nccwpck_require__(692);
 const taf_core_1 = __nccwpck_require__(390);
+const receipt_push_1 = __nccwpck_require__(5844);
 /**
  * Switch to a dedicated target branch for TAF receipts.
  * Creates the branch as an orphan on first run, seeded with existing .taf.
@@ -33236,27 +33237,40 @@ async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
     }
 }
 /**
- * Commit .taf file changes to git and push
+ * Commit .taf file changes to git and push. On a receipts branch, a push
+ * another run beat is tried again on top of its receipts (see receipt-push.ts);
+ * `addReceipt` adds this run's receipt to the fresh .taf.
  */
-async function commitTafUpdate(cwd, message, targetBranch) {
+async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
     const execOptions = { cwd };
     // Configure git
     await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
     await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
-    // Stage .taf file
-    await exec.exec('git', ['add', '.taf'], execOptions);
     // Check if there are changes to commit
-    const { exitCode } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
-    if (exitCode === 0) {
-        await exec.exec('git', ['commit', '-m', message], execOptions);
-        // Push to target branch or current branch
-        const pushArgs = targetBranch ? ['push', 'origin', targetBranch] : ['push'];
-        try {
-            await exec.exec('git', pushArgs, execOptions);
+    await exec.exec('git', ['add', '.taf'], execOptions);
+    const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+    if (stdout.trim() === '') {
+        return;
+    }
+    if (targetBranch) {
+        const git = (args) => exec.exec('git', args, { ...execOptions, ignoreReturnCode: true });
+        const { pushed, attempts } = await (0, receipt_push_1.pushReceipt)(git, targetBranch, message, addReceipt);
+        if (pushed) {
+            if (attempts > 1) {
+                core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);
+            }
         }
-        catch (error) {
-            core.warning('Could not push changes (this is ok in some CI environments)');
+        else {
+            core.warning(`Could not push the receipt to ${targetBranch} after ${attempts} tries`);
         }
+        return;
+    }
+    await exec.exec('git', ['commit', '-m', message], execOptions);
+    try {
+        await exec.exec('git', ['push'], execOptions);
+    }
+    catch (error) {
+        core.warning('Could not push changes (this is ok in some CI environments)');
     }
 }
 async function run() {
@@ -33332,7 +33346,7 @@ async function run() {
         core.info('✅ .taf file updated successfully');
         // Commit changes if enabled
         if (autoCommit) {
-            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined);
+            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => (0, taf_core_1.updateTafFile)(tafPath, testResults));
             core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
         }
     }
@@ -33942,6 +33956,57 @@ function parseWjttcOutput(output) {
     if (fromJson)
         return fromJson;
     return parseHumanLog(clean);
+}
+
+
+/***/ }),
+
+/***/ 5844:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Push a receipt to the receipts branch, and try again when another run got
+ * there first.
+ *
+ * Two runs that finish close together both commit a receipt on top of the
+ * same branch tip; the second push is rejected (non-fast-forward). Before
+ * 2.4.3 that was a warning and the receipt was lost. Now the run fetches the
+ * branch again, resets to it, adds its receipt to the fresh .taf, and pushes,
+ * up to `attempts` times.
+ *
+ * Only for a dedicated receipts branch (`target-branch`): it holds nothing
+ * but .taf, so resetting to the remote throws away only this run's own
+ * rejected commit. Pushing to the current branch never resets.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.pushReceipt = pushReceipt;
+async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 3) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        if (attempt > 1) {
+            // Another run pushed first: start again from its receipts.
+            if ((await git(['fetch', 'origin', targetBranch])) !== 0) {
+                break;
+            }
+            if ((await git(['reset', '--hard', `origin/${targetBranch}`])) !== 0) {
+                break;
+            }
+            if (!addReceipt()) {
+                break;
+            }
+        }
+        if ((await git(['add', '.taf'])) !== 0) {
+            break;
+        }
+        if ((await git(['commit', '-m', message])) !== 0) {
+            break;
+        }
+        if ((await git(['push', 'origin', targetBranch])) === 0) {
+            return { pushed: true, attempts: attempt };
+        }
+    }
+    return { pushed: false, attempts };
 }
 
 

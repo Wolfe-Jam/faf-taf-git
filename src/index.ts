@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
 import { updateTafFile } from './taf-core';
+import { pushReceipt } from './receipt-push';
 
 /**
  * Switch to a dedicated target branch for TAF receipts.
@@ -68,31 +69,38 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
 }
 
 /**
- * Commit .taf file changes to git and push
+ * Commit .taf file changes to git and push. On a receipts branch, a push
+ * another run beat is tried again on top of its receipts (see receipt-push.ts);
+ * `addReceipt` adds this run's receipt to the fresh .taf.
  */
-async function commitTafUpdate(cwd: string, message: string, targetBranch?: string): Promise<void> {
+async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, addReceipt: () => boolean): Promise<void> {
   const execOptions = { cwd };
 
   // Configure git
   await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
   await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
 
-  // Stage .taf file
-  await exec.exec('git', ['add', '.taf'], execOptions);
-
   // Check if there are changes to commit
-  const { exitCode } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+  await exec.exec('git', ['add', '.taf'], execOptions);
+  const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+  if (stdout.trim() === '') {return;}
 
-  if (exitCode === 0) {
-    await exec.exec('git', ['commit', '-m', message], execOptions);
-
-    // Push to target branch or current branch
-    const pushArgs = targetBranch ? ['push', 'origin', targetBranch] : ['push'];
-    try {
-      await exec.exec('git', pushArgs, execOptions);
-    } catch (error) {
-      core.warning('Could not push changes (this is ok in some CI environments)');
+  if (targetBranch) {
+    const git = (args: string[]) => exec.exec('git', args, { ...execOptions, ignoreReturnCode: true });
+    const { pushed, attempts } = await pushReceipt(git, targetBranch, message, addReceipt);
+    if (pushed) {
+      if (attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);}
+    } else {
+      core.warning(`Could not push the receipt to ${targetBranch} after ${attempts} tries`);
     }
+    return;
+  }
+
+  await exec.exec('git', ['commit', '-m', message], execOptions);
+  try {
+    await exec.exec('git', ['push'], execOptions);
+  } catch (error) {
+    core.warning('Could not push changes (this is ok in some CI environments)');
   }
 }
 
@@ -184,7 +192,7 @@ async function run(): Promise<void> {
 
     // Commit changes if enabled
     if (autoCommit) {
-      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined);
+      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults));
       core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
     }
 
