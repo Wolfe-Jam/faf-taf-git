@@ -21,10 +21,10 @@ A Test Receipt Printer for git. Every CI run prints a receipt to .taf: append-on
 - **What:** A Test Receipt Printer for git. Every CI run prints a receipt to .taf: append-only, timestamped, kept in git. Proof over time.
 - **Why:** Test results vanish when CI logs expire. Receipts stay in git, so anyone can look back and check whether main was green before a release.
 - **Where:** https://github.com/Wolfe-Jam/faf-taf-git
-- **When:** v2.4.2 (2026-10-30), undici security fix + CLI-only npm package; v2.4.1 --version fix; v2.4.0 (2026-10-29) JUnit XML parser; live since v1.0.0 (2025-10-27)
-- **How:** Run tests, save the output (or a JUnit XML report), then `uses: Wolfe-Jam/faf-taf-git@v2.4.2` with `target-branch: taf-receipts`. Anywhere else: `npx faf-taf-git --file test-output.txt --commit`. The taf-receipts branch only grows: never rewrite it.
+- **When:** v2.4.3 (2026-10-31), push-race retry + JUnit skipped count; v2.4.2 undici security fix + CLI-only npm package; v2.4.1 --version fix; v2.4.0 (2026-10-29) JUnit XML parser; live since v1.0.0 (2025-10-27)
+- **How:** Run tests, save the output (or a JUnit XML report), then `uses: Wolfe-Jam/faf-taf-git@v2.4.3` with `target-branch: taf-receipts`. Anywhere else: `npx faf-taf-git --file test-output.txt --commit`. The taf-receipts branch only grows: never rewrite it.
 
 ---
 
-*STATUS: SYNC ACTIVE — 2026-10-30T07:20:04.450Z*
+*STATUS: SYNC ACTIVE — 2026-10-31T21:38:02.973Z*
 <!-- faf:end -->
