@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-11-01
+
+Receipts tell the truth about skips: a run where every test was skipped is recorded as SKIPPED, the badge counts only real passes, and each receipt says where it ran.
+
 ### Fixed
 - With no `.taf`, the error said to run `faf taf init`, a command that doesn't exist. It now gives the line that makes one: `echo 'test_history: []' > .taf`.
 - Every receipt said `trigger: github-actions`, even a local run. It now says `github-actions` on GitHub Actions, `ci` on another CI, and `local` otherwise.
