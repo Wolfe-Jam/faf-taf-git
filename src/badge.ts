@@ -121,9 +121,8 @@ export function generateBadge(options: BadgeOptions = {}): BadgeResult {
     }
 
     const skippedSuffix = run.skipped > 0 ? ` (${run.skipped} skipped)` : '';
-    const displayPassed = run.failed === 0 ? run.total : run.passed;
-    const value = `${displayPassed}/${run.total} passing${skippedSuffix}`;
-    const color = run.failed === 0 ? COLOR_PASS : COLOR_FAIL;
+    const value = `${run.passed}/${run.total} passing${skippedSuffix}`;
+    const color = run.failed > 0 ? COLOR_FAIL : run.passed === 0 ? COLOR_NONE : COLOR_PASS;
 
     return {
       success: true,

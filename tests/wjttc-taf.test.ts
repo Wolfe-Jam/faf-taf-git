@@ -326,6 +326,26 @@ describe('🔧 TIER 2: ENGINE - Receipt Completeness', () => {
       // Should have grown (more entries)
       expect(content2.length).toBeGreaterThan(content1.length);
     });
+
+    test('the .taf the error tells you to make takes a receipt', () => {
+      const { NO_TAF_FILE } = require('../dist/taf-core');
+      expect(NO_TAF_FILE).not.toContain('faf taf init');
+      const made = NO_TAF_FILE.match(/echo '(.+)' > \.taf/);
+      expect(made).not.toBeNull();
+
+      const tafPath = path.join(tempDir, '.taf');
+      fs.writeFileSync(tafPath, `${made[1]}\n`);
+      expect(updateTafFile(tafPath, { total: 1, passed: 1, failed: 0, result: 'PASSED' })).toBe(true);
+      expect(fs.readFileSync(tafPath, 'utf8')).toContain('passed: 1');
+    });
+
+    test('trigger says where the run happened', () => {
+      const { runTrigger } = require('../dist/taf-core');
+      expect(runTrigger({ GITHUB_ACTIONS: 'true', CI: 'true' })).toBe('github-actions');
+      expect(runTrigger({ CI: 'true' })).toBe('ci');
+      expect(runTrigger({ CI: 'false' })).toBe('local');
+      expect(runTrigger({})).toBe('local');
+    });
   });
 });
 

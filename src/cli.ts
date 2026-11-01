@@ -10,7 +10,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
-import { updateTafFile } from './taf-core';
+import { NO_TAF_FILE, updateTafFile } from './taf-core';
 import { generateBadge } from './badge';
 
 export interface CLIOptions {
@@ -101,7 +101,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
           result: testResults.result,
         },
         tafUpdated: false,
-        error: 'No .taf file found. Run `faf taf init` to create one.',
+        error: NO_TAF_FILE,
       };
     }
 

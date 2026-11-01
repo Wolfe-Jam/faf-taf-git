@@ -257,4 +257,35 @@ test_history:
     expect(result.success).toBe(true);
     expect(result.svg).toContain('no data');
   });
+  test('skipped tests are not counted as passing', () => {
+    const tafPath = path.join(tempDir, '.taf');
+    fs.writeFileSync(tafPath, `test_history:
+  - timestamp: "2026-01-01T00:00:00Z"
+    result: PASSED
+    tests:
+      total: 2333
+      passed: 2332
+      failed: 0
+      skipped: 1
+`);
+    const result = generateBadge({ tafPath });
+    expect(result.svg).toContain('2332/2333 passing (1 skipped)');
+    expect(result.svg).toContain('#003366');
+  });
+
+  test('every test skipped is a gray badge', () => {
+    const tafPath = path.join(tempDir, '.taf');
+    fs.writeFileSync(tafPath, `test_history:
+  - timestamp: "2026-01-01T00:00:00Z"
+    result: SKIPPED
+    tests:
+      total: 2
+      passed: 0
+      failed: 0
+      skipped: 2
+`);
+    const result = generateBadge({ tafPath });
+    expect(result.svg).toContain('0/2 passing (2 skipped)');
+    expect(result.svg).toContain('#9F9F9F');
+  });
 });

@@ -101,7 +101,7 @@ async function runTafGit(options = {}) {
                     result: testResults.result,
                 },
                 tafUpdated: false,
-                error: 'No .taf file found. Run `faf taf init` to create one.',
+                error: taf_core_1.NO_TAF_FILE,
             };
         }
         // Update .taf file

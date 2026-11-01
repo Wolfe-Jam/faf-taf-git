@@ -124,3 +124,15 @@ describe('JUnit XML Parser', () => {
     });
   });
 });
+
+describe('every test skipped', () => {
+  test('is SKIPPED, not PASSED', () => {
+    const output = `<testsuite name="t" tests="2" failures="0" errors="0" skipped="2"></testsuite>`;
+    expect(parseTestOutput(output)).toEqual({ total: 2, passed: 0, failed: 0, skipped: 2, result: 'SKIPPED' });
+  });
+
+  test('one pass among skips is still PASSED', () => {
+    const output = `<testsuite name="t" tests="3" failures="0" errors="0" skipped="2"></testsuite>`;
+    expect(parseTestOutput(output)?.result).toBe('PASSED');
+  });
+});

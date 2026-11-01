@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- With no `.taf`, the error said to run `faf taf init`, a command that doesn't exist. It now gives the line that makes one: `echo 'test_history: []' > .taf`.
+- Every receipt said `trigger: github-actions`, even a local run. It now says `github-actions` on GitHub Actions, `ci` on another CI, and `local` otherwise.
+- A run where every test was skipped was recorded as `PASSED`. It is now `SKIPPED`, a new `result` value in the receipt format (`RECEIPT-FORMAT.md`), and its badge is gray.
+- The badge counted skipped tests as passing: 2332 passed and 1 skipped showed `2333/2333 passing (1 skipped)`. It now shows `2332/2333 passing (1 skipped)`.
+
 ## [2.4.3] - 2026-10-31
 
 A receipt that loses a push race is retried instead of lost, and skipped Go tests count as skipped, not passed.
