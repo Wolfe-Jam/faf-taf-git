@@ -62,7 +62,7 @@ export function updateTafFile(
         failed: testResults.failed,
         skipped: testResults.skipped,
       },
-      trigger: 'github-actions',
+      trigger: runTrigger(),
     };
 
     // Append to history
@@ -78,6 +78,20 @@ export function updateTafFile(
     return false;
   }
 }
+
+/**
+ * What fired the run: GitHub Actions, another CI, or a local run
+ */
+export function runTrigger(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.GITHUB_ACTIONS === 'true') return 'github-actions';
+  if (env.CI && env.CI !== 'false') return 'ci';
+  return 'local';
+}
+
+/**
+ * The error when there is no .taf to append to, with the command that makes one
+ */
+export const NO_TAF_FILE = "No .taf file found. Create one: echo 'test_history: []' > .taf";
 
 /**
  * Create a new TAF file structure

@@ -33332,7 +33332,7 @@ async function run() {
         }
         // Check if .taf file exists (on current or target branch)
         if (!fs.existsSync(tafPath)) {
-            core.setFailed('No .taf file found. Run `faf taf init` to create one.');
+            core.setFailed(taf_core_1.NO_TAF_FILE);
             return;
         }
         // Update .taf file
@@ -34063,7 +34063,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NO_TAF_FILE = void 0;
 exports.updateTafFile = updateTafFile;
+exports.runTrigger = runTrigger;
 const fs = __importStar(__nccwpck_require__(9896));
 const yaml = __importStar(__nccwpck_require__(8815));
 /**
@@ -34093,7 +34095,7 @@ function updateTafFile(tafPath, testResults) {
                 failed: testResults.failed,
                 skipped: testResults.skipped,
             },
-            trigger: 'github-actions',
+            trigger: runTrigger(),
         };
         // Append to history
         taf.test_history.push(run);
@@ -34107,6 +34109,20 @@ function updateTafFile(tafPath, testResults) {
         return false;
     }
 }
+/**
+ * What fired the run: GitHub Actions, another CI, or a local run
+ */
+function runTrigger(env = process.env) {
+    if (env.GITHUB_ACTIONS === 'true')
+        return 'github-actions';
+    if (env.CI && env.CI !== 'false')
+        return 'ci';
+    return 'local';
+}
+/**
+ * The error when there is no .taf to append to, with the command that makes one
+ */
+exports.NO_TAF_FILE = "No .taf file found. Create one: echo 'test_history: []' > .taf";
 /**
  * Create a new TAF file structure
  */

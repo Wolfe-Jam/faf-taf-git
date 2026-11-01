@@ -10,7 +10,7 @@ import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
-import { updateTafFile } from './taf-core';
+import { NO_TAF_FILE, updateTafFile } from './taf-core';
 import { pushReceipt } from './receipt-push';
 
 /**
@@ -174,7 +174,7 @@ async function run(): Promise<void> {
 
     // Check if .taf file exists (on current or target branch)
     if (!fs.existsSync(tafPath)) {
-      core.setFailed('No .taf file found. Run `faf taf init` to create one.');
+      core.setFailed(NO_TAF_FILE);
       return;
     }
 
