@@ -33521,9 +33521,13 @@ function parseTestOutput(output) {
     for (const [, parse] of PARSERS) {
         const results = parse(output);
         if (results)
-            return results;
+            return allSkipped(results) ? { ...results, result: 'SKIPPED' } : results;
     }
     return null;
+}
+/** Tests were found, but none passed and none failed: every one was skipped. */
+function allSkipped(r) {
+    return r.total > 0 && r.passed === 0 && r.failed === 0;
 }
 
 

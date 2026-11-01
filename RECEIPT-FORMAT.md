@@ -36,7 +36,7 @@ last_updated: 2026-06-28T09:05:00Z  # ISO 8601 UTC — bumped on each append
 
 test_history:                  # append-only, oldest → newest
   - timestamp: 2026-06-28T09:05:00Z   # ISO 8601 UTC — the receipt date
-    result: PASSED                    # PASSED | FAILED | IMPROVED | DEGRADED
+    result: PASSED                    # PASSED | FAILED | IMPROVED | DEGRADED | SKIPPED
     tests:                            # itemized lines (nested)
       total: 7
       passed: 7
@@ -52,7 +52,7 @@ test_history:                  # append-only, oldest → newest
 |---|---|---|
 | `test_history[]` | **required** | the spine — the one hard parse requirement; append-only, never edit a past entry |
 | `…timestamp` | **required** | ISO 8601 UTC |
-| `…result` | **required** | enum: `PASSED` \| `FAILED` \| `IMPROVED` \| `DEGRADED` |
+| `…result` | **required** | enum: `PASSED` \| `FAILED` \| `IMPROVED` \| `DEGRADED` \| `SKIPPED` (added in 2.4.4: tests were found and every one was skipped). Readers should show a value they don't know rather than reject the receipt |
 | `…tests{total,passed,failed}` | **required** | nested; `skipped` optional |
 | `…trigger` / `…command` | optional | provenance of the run |
 | `format_version` `project` `created` `last_updated` | writer-emitted | the canonical writer always emits these; readers tolerate their absence |

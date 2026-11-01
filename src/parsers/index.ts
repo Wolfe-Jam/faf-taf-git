@@ -44,7 +44,12 @@ export const UNPARSEABLE_OUTPUT = `Could not parse test output. Supported: ${SUP
 export function parseTestOutput(output: string): TestResults | null {
   for (const [, parse] of PARSERS) {
     const results = parse(output);
-    if (results) return results;
+    if (results) return allSkipped(results) ? { ...results, result: 'SKIPPED' } : results;
   }
   return null;
+}
+
+/** Tests were found, but none passed and none failed: every one was skipped. */
+function allSkipped(r: TestResults): boolean {
+  return r.total > 0 && r.passed === 0 && r.failed === 0;
 }

@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as yaml from 'yaml';
-import { TestResults } from './parsers/jest';
+import { TestResult, TestResults } from './parsers/jest';
 
 interface TAFFile {
   format_version?: string;
@@ -20,7 +20,7 @@ interface TAFFile {
 
 interface TestRun {
   timestamp: string;
-  result: 'PASSED' | 'FAILED' | 'IMPROVED' | 'DEGRADED';
+  result: TestResult;
   tests: {
     total: number;
     passed: number;

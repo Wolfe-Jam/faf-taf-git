@@ -8,8 +8,10 @@ export interface TestResults {
     passed: number;
     failed: number;
     skipped?: number;
-    result: 'PASSED' | 'FAILED' | 'IMPROVED' | 'DEGRADED';
+    result: TestResult;
 }
+/** SKIPPED: tests were found, every one was skipped, so nothing passed or failed. */
+export type TestResult = 'PASSED' | 'FAILED' | 'IMPROVED' | 'DEGRADED' | 'SKIPPED';
 /**
  * Parse Jest output to extract test results
  *
