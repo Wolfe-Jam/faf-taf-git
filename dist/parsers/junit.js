@@ -47,7 +47,9 @@ function countsFromTestcases(xml) {
  * - a <testsuites> root that carries the totals (gotestsum, Maven)
  * - a <testsuites> root without totals, around counted <testsuite>s (pytest)
  * - a single <testsuite> root
- * - nested <testsuite>s (only the outermost level is counted, never twice)
+ * - nested <testsuite>s: the <testcase>s are counted, because writers disagree
+ *   on what an outer suite's `tests` means (node:test counts a nested
+ *   describe as one test; PHPUnit counts every test inside it)
  * - suites with no counts at all (the <testcase> elements are counted instead)
  *
  * failures + errors count as failed; skipped + disabled count as skipped.
@@ -65,6 +67,7 @@ function parseJunitOutput(output) {
         let depth = 0;
         let summed = { tests: 0, failed: 0, skipped: 0 };
         let seen = 0;
+        let nested = false;
         let match;
         SUITE_TAG.lastIndex = 0;
         while ((match = SUITE_TAG.exec(xml)) !== null) {
@@ -73,6 +76,8 @@ function parseJunitOutput(output) {
                 depth--;
                 continue;
             }
+            if (depth > 0)
+                nested = true;
             if (depth === 0 && summed) {
                 seen++;
                 const suite = countsFromAttrs(attrs);
@@ -88,7 +93,8 @@ function parseJunitOutput(output) {
             if (!selfClosing)
                 depth++;
         }
-        counts = seen > 0 && summed ? summed : countsFromTestcases(xml);
+        const testcases = countsFromTestcases(xml);
+        counts = seen > 0 && summed && !(nested && testcases.tests > 0) ? summed : testcases;
     }
     if (counts.tests === 0)
         return null;

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- JUnit XML with nested suites is counted by its `<testcase>`s. node:test (`--test-reporter=junit`) counts a nested `describe` as one test in its parent, so a run of 3 tests (1 passed, 1 failed, 1 skipped) inside two `describe`s was recorded as 1 test, 0 passed.
+
 ## [2.4.4] - 2026-11-01
 
 Receipts tell the truth about skips: a run where every test was skipped is recorded as SKIPPED, the badge counts only real passes, and each receipt says where it ran.
