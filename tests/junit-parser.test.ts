@@ -50,6 +50,44 @@ describe('JUnit XML Parser', () => {
       expect(parseJunitOutput(output)!.total).toBe(5);
     });
 
+    test('node:test nested describe: counts the testcases, not the outer suite', () => {
+      // node --test --test-reporter=junit: a nested describe counts as one test in its parent.
+      const output = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="outer" disabled="0" errors="0" tests="1" failures="1" skipped="1">
+		<testsuite name="inner" disabled="0" errors="0" tests="3" failures="1" skipped="1">
+			<testcase name="pass" classname="test"/>
+			<testcase name="fail" classname="test"><failure type="testCodeFailure" message="x"/></testcase>
+			<testcase name="skip" classname="test"><skipped type="skipped" message="true"/></testcase>
+		</testsuite>
+	</testsuite>
+</testsuites>`;
+      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
+    });
+
+    test('node:test top-level tests beside a describe: a failing top-level test is not dropped', () => {
+      const output = `<testsuites>
+	<testcase name="top pass" classname="test"/>
+	<testcase name="top fail" classname="test"><failure type="testCodeFailure" message="x"/></testcase>
+	<testsuite name="d" disabled="0" errors="0" tests="3" failures="0" skipped="2">
+		<testcase name="pass" classname="test"/>
+		<testcase name="skip" classname="test"><skipped type="skipped" message="true"/></testcase>
+		<testcase name="todo" classname="test"><skipped type="todo" message="true"/></testcase>
+	</testsuite>
+</testsuites>`;
+      expect(parseJunitOutput(output)).toEqual({ total: 5, passed: 2, failed: 1, skipped: 2, result: 'FAILED' });
+    });
+
+    test('nested suites with a test beside the inner suite: every testcase counts', () => {
+      const output = `<testsuites>
+  <testsuite name="outer" tests="2" failures="0">
+    <testcase name="direct"/>
+    <testsuite name="inner" tests="2" failures="0"><testcase name="a"/><testcase name="b"/></testsuite>
+  </testsuite>
+</testsuites>`;
+      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 3, failed: 0, skipped: undefined, result: 'PASSED' });
+    });
+
     test('should count failures and errors together as failed', () => {
       const output = `<testsuite tests="10" failures="2" errors="1" skipped="1"></testsuite>`;
       expect(parseJunitOutput(output)).toEqual({ total: 10, passed: 6, failed: 3, skipped: 1, result: 'FAILED' });
