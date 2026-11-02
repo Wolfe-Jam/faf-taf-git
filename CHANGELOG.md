@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.5] - 2026-11-02
+
+node:test receipts count every test: a failing top-level test beside a `describe` is no longer dropped, and nested `describe`s are counted in full.
+
 ### Fixed
 - node:test JUnit reports (`--test-reporter=junit`) are counted by their `<testcase>`s. node counts a nested `describe` as one test in its parent, and puts top-level tests beside its suites, so a run with a `describe` was miscounted: a failing top-level test was dropped and the receipt said PASSED. Now counted when suites are nested, or when there are more testcases than the suites count. Other reports are read as before.
 
