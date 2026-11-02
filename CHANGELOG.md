@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- JUnit XML with nested suites is counted by its `<testcase>`s. node:test (`--test-reporter=junit`) counts a nested `describe` as one test in its parent, so a run of 3 tests (1 passed, 1 failed, 1 skipped) inside two `describe`s was recorded as 1 test, 0 passed.
+- node:test JUnit reports (`--test-reporter=junit`) are counted by their `<testcase>`s. node counts a nested `describe` as one test in its parent, and puts top-level tests beside its suites, so a run with a `describe` was miscounted: a failing top-level test was dropped and the receipt said PASSED. Now counted when suites are nested, or when there are more testcases than the suites count. Other reports are read as before.
 
 ## [2.4.4] - 2026-11-01
 

@@ -65,6 +65,19 @@ describe('JUnit XML Parser', () => {
       expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
     });
 
+    test('node:test top-level tests beside a describe: a failing top-level test is not dropped', () => {
+      const output = `<testsuites>
+	<testcase name="top pass" classname="test"/>
+	<testcase name="top fail" classname="test"><failure type="testCodeFailure" message="x"/></testcase>
+	<testsuite name="d" disabled="0" errors="0" tests="3" failures="0" skipped="2">
+		<testcase name="pass" classname="test"/>
+		<testcase name="skip" classname="test"><skipped type="skipped" message="true"/></testcase>
+		<testcase name="todo" classname="test"><skipped type="todo" message="true"/></testcase>
+	</testsuite>
+</testsuites>`;
+      expect(parseJunitOutput(output)).toEqual({ total: 5, passed: 2, failed: 1, skipped: 2, result: 'FAILED' });
+    });
+
     test('nested suites with a test beside the inner suite: every testcase counts', () => {
       const output = `<testsuites>
   <testsuite name="outer" tests="2" failures="0">

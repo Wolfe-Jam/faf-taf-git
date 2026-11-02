@@ -54,9 +54,10 @@ function countsFromTestcases(xml: string): Counts {
  * - a <testsuites> root that carries the totals (gotestsum, Maven)
  * - a <testsuites> root without totals, around counted <testsuite>s (pytest)
  * - a single <testsuite> root
- * - nested <testsuite>s: the <testcase>s are counted, because writers disagree
- *   on what an outer suite's `tests` means (node:test counts a nested
- *   describe as one test; PHPUnit counts every test inside it)
+ * - nested <testsuite>s, or <testcase>s outside any suite: the <testcase>s are
+ *   counted. Writers disagree on what an outer suite's `tests` means (node:test
+ *   counts a nested describe as one test; PHPUnit counts every test inside it),
+ *   and node:test puts top-level tests beside its suites, under the root
  * - suites with no counts at all (the <testcase> elements are counted instead)
  *
  * failures + errors count as failed; skipped + disabled count as skipped.
@@ -99,7 +100,9 @@ export function parseJunitOutput(output: string): TestResults | null {
       if (!selfClosing) depth++;
     }
     const testcases = countsFromTestcases(xml);
-    counts = seen > 0 && summed && !(nested && testcases.tests > 0) ? summed : testcases;
+    // More testcases than the suites count means tests sit outside them.
+    const useSuites = seen > 0 && summed && (testcases.tests === 0 || (!nested && testcases.tests <= summed.tests));
+    counts = useSuites && summed ? summed : testcases;
   }
 
   if (counts.tests === 0) return null;
