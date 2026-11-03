@@ -9,7 +9,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
+import { noResultsReason, parseTestOutput } from './parsers';
 import { NO_TAF_FILE, updateTafFile } from './taf-core';
 import { generateBadge } from './badge';
 
@@ -81,7 +81,7 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       return {
         success: false,
         tafUpdated: false,
-        error: UNPARSEABLE_OUTPUT,
+        error: noResultsReason(output),
       };
     }
 

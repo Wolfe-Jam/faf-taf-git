@@ -21,7 +21,9 @@
   ],
   "scripts": {
     "build": "tsc && ncc build src/index.ts -o dist --source-map --license licenses.txt",
-    "test": "jest"
+    "test": "jest",
+    "check:no-hardcode": "! grep -rEln '/(Users|home/runner|private/var)/' dist/ || (echo 'Build-machine path in dist/ (see above).'; exit 1)",
+    "prepublishOnly": "npm run check:no-hardcode"
   },
   "repository": {
     "type": "git",

@@ -39,6 +39,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: No build-machine paths in dist
+        run: npm run check:no-hardcode
+
       - name: 'A: Run tests (Audit)'
         run: npm test 2>&1 | tee test-output.txt
 

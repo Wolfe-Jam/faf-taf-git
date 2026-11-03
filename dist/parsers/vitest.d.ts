@@ -14,4 +14,3 @@ import { TestResults } from './jest';
  * - " Tests  1 failed | 2 skipped | 5 passed (8)"
  */
 export declare function parseVitestOutput(output: string): TestResults | null;
-//# sourceMappingURL=vitest.d.ts.map

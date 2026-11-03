@@ -83,7 +83,7 @@ async function runTafGit(options = {}) {
             return {
                 success: false,
                 tafUpdated: false,
-                error: parsers_1.UNPARSEABLE_OUTPUT,
+                error: (0, parsers_1.noResultsReason)(output),
             };
         }
         if (verbose) {

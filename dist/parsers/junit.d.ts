@@ -22,4 +22,3 @@ import { TestResults } from './jest';
  * failures + errors count as failed; skipped + disabled count as skipped.
  */
 export declare function parseJunitOutput(output: string): TestResults | null;
-//# sourceMappingURL=junit.d.ts.map

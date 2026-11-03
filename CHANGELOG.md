@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A JUnit report that lists no tests (`node --test` with no test files) says `No tests ran: the JUnit report lists 0 tests, so there is no receipt to print.` instead of `Could not parse test output`. Still no receipt, still exit 1.
+- The npm package no longer carries this machine's file paths: the `.d.ts.map` files (which pointed at `file:///Users/…/src`, a folder the package doesn't ship) are gone, and so are `dist/main.*`, left over from a source file deleted long ago. 52 files → 37.
+
+### Changed
+- `npm run check:no-hardcode` fails when `dist/` holds a build-machine path. CI runs it after the build, and `npm publish` runs it first.
+
 ## [2.4.5] - 2026-11-02
 
 node:test receipts count every test: a failing top-level test beside a `describe` is no longer dropped, and nested `describe`s are counted in full.
