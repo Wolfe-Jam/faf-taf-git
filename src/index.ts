@@ -9,7 +9,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTestOutput, UNPARSEABLE_OUTPUT } from './parsers';
+import { noResultsReason, parseTestOutput } from './parsers';
 import { NO_TAF_FILE, updateTafFile } from './taf-core';
 import { pushReceipt } from './receipt-push';
 
@@ -146,7 +146,7 @@ async function run(): Promise<void> {
     const testResults = parseTestOutput(testOutput);
 
     if (!testResults) {
-      core.setFailed(UNPARSEABLE_OUTPUT);
+      core.setFailed(noResultsReason(testOutput));
       return;
     }
 

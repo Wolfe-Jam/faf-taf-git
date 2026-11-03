@@ -174,3 +174,26 @@ describe('every test skipped', () => {
     expect(parseTestOutput(output)?.result).toBe('PASSED');
   });
 });
+
+describe('a report with no tests', () => {
+  const { noResultsReason, NO_TESTS, UNPARSEABLE_OUTPUT } = require('../src/parsers');
+
+  test('node --test with no test files: "no tests ran", not "could not parse"', () => {
+    const output = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+\t<!-- tests 0 -->
+\t<!-- pass 0 -->
+\t<!-- fail 0 -->
+</testsuites>`;
+    expect(parseTestOutput(output)).toBeNull();
+    expect(noResultsReason(output)).toBe(NO_TESTS);
+  });
+
+  test('an empty <testsuite tests="0">: "no tests ran"', () => {
+    expect(noResultsReason('<testsuite name="x" tests="0" failures="0"></testsuite>')).toBe(NO_TESTS);
+  });
+
+  test('text no parser reads: still "could not parse"', () => {
+    expect(noResultsReason('hello world')).toBe(UNPARSEABLE_OUTPUT);
+  });
+});

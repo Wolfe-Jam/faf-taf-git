@@ -35,4 +35,3 @@ import { TestResults } from './jest';
  * Parse WJTTC (pc-ai bar) output to TestResults, or null if not WJTTC.
  */
 export declare function parseWjttcOutput(output: string): TestResults | null;
-//# sourceMappingURL=wjttc.d.ts.map

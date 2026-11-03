@@ -37,4 +37,3 @@ export declare function parseJestOutput(output: string): TestResults | null;
  * With padding (CI):
  * "Tests:       9 skipped, 799 passed, 808 total"
  */
-//# sourceMappingURL=jest.d.ts.map

@@ -33309,7 +33309,7 @@ async function run() {
         // Parse test results
         const testResults = (0, parsers_1.parseTestOutput)(testOutput);
         if (!testResults) {
-            core.setFailed(parsers_1.UNPARSEABLE_OUTPUT);
+            core.setFailed((0, parsers_1.noResultsReason)(testOutput));
             return;
         }
         core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
@@ -33483,7 +33483,8 @@ function parseBunOutput(output) {
  * Tries each framework parser in order until one succeeds.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UNPARSEABLE_OUTPUT = exports.SUPPORTED_PARSERS = exports.parseWjttcOutput = exports.parseJunitOutput = void 0;
+exports.NO_TESTS = exports.UNPARSEABLE_OUTPUT = exports.SUPPORTED_PARSERS = exports.parseWjttcOutput = exports.parseJunitOutput = void 0;
+exports.noResultsReason = noResultsReason;
 exports.parseTestOutput = parseTestOutput;
 const bun_1 = __nccwpck_require__(1505);
 const jest_1 = __nccwpck_require__(3416);
@@ -33513,6 +33514,14 @@ const PARSERS = [
 exports.SUPPORTED_PARSERS = PARSERS.map(([name]) => name);
 /** What the CLI and the Action report when no parser matches. */
 exports.UNPARSEABLE_OUTPUT = `Could not parse test output. Supported: ${exports.SUPPORTED_PARSERS.join(', ')}.`;
+/** A JUnit report that lists no tests (node --test with no test files): nothing ran, so no receipt. */
+exports.NO_TESTS = 'No tests ran: the JUnit report lists 0 tests, so there is no receipt to print.';
+/** Why the output gave no results: no tests at all, or a format faf-taf-git doesn't read. */
+function noResultsReason(output) {
+    const xml = output.replace(/<!--[\s\S]*?-->/g, '');
+    const junitShaped = /<testsuites?\b/.test(xml);
+    return junitShaped && !/<testcase\b/.test(xml) && !/\btests\s*=\s*["'][1-9]/.test(xml) ? exports.NO_TESTS : exports.UNPARSEABLE_OUTPUT;
+}
 /**
  * Parse test output from any supported framework: the first parser in
  * PARSERS that recognises the output wins.
