@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.4.3 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.4.6 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
