@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="4" failures="1" errors="0" time="0.008465017">
+    <testsuite name="sample.test.mjs" timestamp="2026-11-03T17:27:44.525Z" tests="4" failures="1" errors="0" skipped="1" time="0.008465017">
+        <testcase classname="sample.test.mjs" name="outer &gt; pass one" time="0.001681906">
+        </testcase>
+        <testcase classname="sample.test.mjs" name="outer &gt; inner &gt; pass two" time="0.000343401">
+        </testcase>
+        <testcase classname="sample.test.mjs" name="outer &gt; inner &gt; fail" time="0.004905447">
+            <failure message="expected 1 to be 2 // Object.is equality" type="AssertionError">
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ sample.test.mjs:8:36
+            </failure>
+        </testcase>
+        <testcase classname="sample.test.mjs" name="outer &gt; inner &gt; skipped" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+</testsuites>

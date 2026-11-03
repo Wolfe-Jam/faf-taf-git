@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="4" failures="1" errors="0" time="0.348">
+  <testsuite name="outer" errors="0" failures="1" skipped="1" timestamp="2026-11-03T17:27:33" time="0.223" tests="4">
+    <testcase classname="outer pass one" name="outer pass one" time="0.002">
+    </testcase>
+    <testcase classname="outer inner pass two" name="outer inner pass two" time="0.001">
+    </testcase>
+    <testcase classname="outer inner fail" name="outer inner fail" time="0.002">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 2
+Received: 1
+    at Object.toBe (sample.test.js:6:36)
+    at Promise.finally.completed (node_modules/jest-circus/build/jestAdapterInit.js:1834:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (node_modules/jest-circus/build/jestAdapterInit.js:1774:10)
+    at _callCircusTest (node_modules/jest-circus/build/jestAdapterInit.js:1167:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTestInContext (node_modules/jest-circus/build/jestAdapterInit.js:1103:3)
+    at runTestWithContext (node_modules/jest-circus/build/jestAdapterInit.js:996:5)
+    at _runTestsForDescribeBlockOnce (node_modules/jest-circus/build/jestAdapterInit.js:1008:11)
+    at _runTestsForDescribeBlock (node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce (node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock (node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce (node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock (node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at run (node_modules/jest-circus/build/jestAdapterInit.js:789:3)
+    at runAndTransformResultsToJestFormat (node_modules/jest-circus/build/jestAdapterInit.js:2300:21)
+    at jestAdapter (node_modules/jest-circus/build/runner.js:111:19)
+    at runTestInternal (node_modules/jest-runner/build/index.js:247:16)
+    at runTest (node_modules/jest-runner/build/index.js:315:7)</failure>
+    </testcase>
+    <testcase classname="outer inner skipped" name="outer inner skipped" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+</testsuites>

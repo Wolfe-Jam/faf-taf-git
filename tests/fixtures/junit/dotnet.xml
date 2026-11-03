@@ -1,0 +1,36 @@
+<testsuites>
+  <testsuite name="Sample.dll" tests="4" skipped="1" failures="1" errors="0" time="0.0077616" timestamp="2026-11-03T17:26:58" id="0" package="Sample.dll">
+    <properties />
+    <testcase classname="UnknownNamespace.UnknownType" name="SampleTests.Skipped" time="0.0010000">
+      <skipped />
+      <system-out>skipped on purpose
+</system-out>
+    </testcase>
+    <testcase classname="UnknownNamespace.UnknownType" name="SampleTests.PassOne" time="0.0035448" />
+    <testcase classname="UnknownNamespace.UnknownType" name="SampleTests.Fail" time="0.0030361">
+      <failure type="failure" message="Assert.Equal() Failure&#xA;Expected: 1&#xA;Actual:   2">at SampleTests.Fail() in SampleTests.cs:line 12
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</failure>
+    </testcase>
+    <testcase classname="UnknownNamespace.UnknownType" name="SampleTests.PassTwo" time="0.0001807" />
+    <system-out>
+Test Framework Informational Messages:
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.33)
+[xUnit.net 00:00:00.37]   Discovering: Sample
+[xUnit.net 00:00:00.41]   Discovered:  Sample
+[xUnit.net 00:00:00.42]   Starting:    Sample
+[xUnit.net 00:00:00.46]       skipped on purpose
+[xUnit.net 00:00:00.49]       Assert.Equal() Failure
+[xUnit.net 00:00:00.49]       Expected: 1
+[xUnit.net 00:00:00.49]       Actual:   2
+[xUnit.net 00:00:00.49]       Stack Trace:
+[xUnit.net 00:00:00.49]         SampleTests.cs(12,0): at SampleTests.Fail()
+[xUnit.net 00:00:00.49]            at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+[xUnit.net 00:00:00.49]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.50]   Finished:    Sample
+</system-out>
+    <system-err>Warning - [xUnit.net 00:00:00.46]     SampleTests.Skipped [SKIP]
+Error - [xUnit.net 00:00:00.49]     SampleTests.Fail [FAIL]
+</system-err>
+  </testsuite>
+</testsuites>

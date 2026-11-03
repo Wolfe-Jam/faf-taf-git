@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="nextest-run" tests="3" skipped="0" failures="1" errors="0" uuid="d65f4edc-7c34-4e5c-8590-732dddcaa9c6" timestamp="2026-11-03T17:26:18.935+00:00" time="0.273">
+    <testsuite name="nextest_sample" tests="3" skipped="0" errors="0" failures="1">
+        <testcase name="tests::pass_one" classname="nextest_sample" timestamp="2026-11-03T17:26:18.935+00:00" time="0.005"/>
+        <testcase name="tests::pass_two" classname="nextest_sample" timestamp="2026-11-03T17:26:18.935+00:00" time="0.007"/>
+        <testcase name="tests::fail" classname="nextest_sample" timestamp="2026-11-03T17:26:18.935+00:00" time="0.271">
+            <failure message="thread &apos;tests::fail&apos; (11066) panicked at src/lib.rs:10:17" type="test failure with exit code 101">thread &apos;tests::fail&apos; (11066) panicked at src/lib.rs:10:17:
+assertion `left == right` failed: failed on purpose
+  left: 1
+ right: 2
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:689:5
+   1: core::panicking::panic_fmt
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:80:14
+   2: core::panicking::assert_failed_inner
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:434:23
+   3: core::panicking::assert_failed::&lt;i32, i32&gt;
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:394:5
+   4: nextest_sample::tests::fail
+             at ./src/lib.rs:10:17
+   5: nextest_sample::tests::fail::{closure#0}
+             at ./src/lib.rs:10:14
+   6: &lt;nextest_sample::tests::fail::{closure#0} as core::ops::function::FnOnce&lt;()&gt;&gt;::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   7: &lt;fn() -&gt; core::result::Result&lt;(), alloc::string::String&gt; as core::ops::function::FnOnce&lt;()&gt;&gt;::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.</failure>
+            <system-out>
+running 1 test
+test tests::fail ... FAILED
+
+failures:
+
+failures:
+    tests::fail
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.26s
+
+</system-out>
+            <system-err>
+thread &apos;tests::fail&apos; (11066) panicked at src/lib.rs:10:17:
+assertion `left == right` failed: failed on purpose
+  left: 1
+ right: 2
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:689:5
+   1: core::panicking::panic_fmt
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:80:14
+   2: core::panicking::assert_failed_inner
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:434:23
+   3: core::panicking::assert_failed::&lt;i32, i32&gt;
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:394:5
+   4: nextest_sample::tests::fail
+             at ./src/lib.rs:10:17
+   5: nextest_sample::tests::fail::{closure#0}
+             at ./src/lib.rs:10:14
+   6: &lt;nextest_sample::tests::fail::{closure#0} as core::ops::function::FnOnce&lt;()&gt;&gt;::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   7: &lt;fn() -&gt; core::result::Result&lt;(), alloc::string::String&gt; as core::ops::function::FnOnce&lt;()&gt;&gt;::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+</system-err>
+        </testcase>
+    </testsuite>
+</testsuites>
