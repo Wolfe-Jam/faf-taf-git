@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="top-level pass" time="0.000734" classname="test"/>
+	<testcase name="top-level fail" time="0.000709" classname="test" failure="Expected values to be strictly equal:1 !== 2">
+		<failure type="testCodeFailure" message="Expected values to be strictly equal:1 !== 2">
+[Error [ERR_TEST_FAILURE]: Expected values to be strictly equal:
+
+1 !== 2
+] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.&lt;anonymous> (sample.test.mjs:5:39)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+}
+		</failure>
+	</testcase>
+	<testsuite name="outer" time="0.001987" disabled="0" errors="0" tests="1" failures="0" skipped="1">
+		<testsuite name="inner" time="0.001768" disabled="0" errors="0" tests="3" failures="0" skipped="2">
+			<testcase name="nested pass" time="0.001130" classname="test"/>
+			<testcase name="nested skip" time="0.000131" classname="test">
+				<skipped type="skipped" message="skipped on purpose"/>
+			</testcase>
+			<testcase name="nested todo" time="0.000095" classname="test">
+				<skipped type="todo" message="not written yet"/>
+			</testcase>
+		</testsuite>
+	</testsuite>
+	<!-- tests 5 -->
+	<!-- suites 2 -->
+	<!-- pass 2 -->
+	<!-- fail 1 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 1 -->
+	<!-- todo 1 -->
+	<!-- duration_ms 59.731501 -->
+</testsuites>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="5" failures="1" errors="0" time="0.003386">
+	<testsuite tests="5" failures="1" skipped="1" time="0.003000" name="example.com/sample" timestamp="2026-11-03T17:25:59Z">
+		<properties>
+			<property name="go.version" value="go1.24.7 linux/amd64"></property>
+		</properties>
+		<testcase classname="example.com/sample" name="TestFail" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestFail&#xA;    sample_test.go:7: failed on purpose&#xA;--- FAIL: TestFail (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="example.com/sample" name="TestSkip" time="0.000000">
+			<skipped message="=== RUN   TestSkip&#xA;    sample_test.go:9: skipped on purpose&#xA;--- SKIP: TestSkip (0.00s)&#xA;"></skipped>
+		</testcase>
+		<testcase classname="example.com/sample" name="TestPassOne" time="0.000000"></testcase>
+		<testcase classname="example.com/sample" name="TestWithSubtest/sub_pass" time="0.000000"></testcase>
+		<testcase classname="example.com/sample" name="TestWithSubtest" time="0.000000"></testcase>
+	</testsuite>
+</testsuites>
