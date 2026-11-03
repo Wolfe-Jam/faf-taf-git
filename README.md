@@ -107,6 +107,13 @@ If your tests run on several operating systems, print the receipt from the one t
 
 JUnit XML is the common report format most test runners can write. If your runner isn't in the table, check whether it can write JUnit XML.
 
+**Maven and Gradle write one XML file per test class.** Join them into one file first, or the receipt covers a single class, and one class's file can read PASSED for a run that failed:
+
+```bash
+cat target/surefire-reports/TEST-*.xml > report.xml     # Maven
+cat build/test-results/test/TEST-*.xml > report.xml     # Gradle
+```
+
 ## Other CI systems
 
 The command-line tool does the same job anywhere Node.js runs (GitLab, Jenkins, CircleCI, Bitbucket, Azure, your own machine):
