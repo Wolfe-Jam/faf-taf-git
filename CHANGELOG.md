@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **No shell for the commit message** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): the CLI ran `git commit -m "<message>"` through a shell, so `--message 'x$(touch INJECTED)y'` ran a command. Every git call now takes an argument list.
+- **Receipt commits hold `.taf` only** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39), and the `target-branch` path in this release): `git add` and `git commit` name `-- .taf`, so whatever else is staged stays out of the receipt.
+- **The Action never writes git config** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): it used `git config --global user.name/user.email`, which on a developer machine replaces their identity for every repo. The bot identity now goes to each git command as `GIT_AUTHOR_*` / `GIT_COMMITTER_*`.
+
+### Changed
+- **During a merge, the CLI's `--commit` now fails** (`cannot do a partial commit during a merge`) and leaves `.taf` staged. Before, it silently committed your merge as the receipt. Finish the merge, then commit the receipt.
+
 ## [2.5.0] - 2026-11-05 — Named Skips Edition
 
 Receipts name the skipped tests, so a skipped count that stays the same can't hide a different set.

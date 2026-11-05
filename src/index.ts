@@ -61,7 +61,7 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
     }
 
     await exec.exec('git', ['add', '.taf'], execOptions);
-    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`], execOptions);
+    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
     core.info(`Created new branch: ${targetBranch}`);
   }
 }

@@ -33260,7 +33260,7 @@ async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
             core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
         }
         await exec.exec('git', ['add', '.taf'], execOptions);
-        await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`], execOptions);
+        await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
         core.info(`Created new branch: ${targetBranch}`);
     }
 }
@@ -34109,10 +34109,11 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
                 break;
             }
         }
-        if ((await git(['add', '.taf'])) !== 0) {
+        // Name .taf on both: the receipt commit holds the receipt and nothing else.
+        if ((await git(['add', '--', '.taf'])) !== 0) {
             break;
         }
-        if ((await git(['commit', '-m', message])) !== 0) {
+        if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {
             break;
         }
         if ((await git(['push', 'origin', targetBranch])) === 0) {
