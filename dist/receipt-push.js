@@ -29,10 +29,11 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
                 break;
             }
         }
-        if ((await git(['add', '.taf'])) !== 0) {
+        // Name .taf on both: the receipt commit holds the receipt and nothing else.
+        if ((await git(['add', '--', '.taf'])) !== 0) {
             break;
         }
-        if ((await git(['commit', '-m', message])) !== 0) {
+        if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {
             break;
         }
         if ((await git(['push', 'origin', targetBranch])) === 0) {

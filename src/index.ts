@@ -60,8 +60,8 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
       core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
     }
 
-    await exec.exec('git', ['add', '.taf'], execOptions);
-    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`], execOptions);
+    await exec.exec('git', ['add', '--', '.taf'], execOptions);
+    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
     core.info(`Created new branch: ${targetBranch}`);
   }
 }
@@ -75,7 +75,7 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   const execOptions = { cwd, env: botGitEnv() };
 
   // Check if there are changes to commit
-  await exec.exec('git', ['add', '.taf'], execOptions);
+  await exec.exec('git', ['add', '--', '.taf'], execOptions);
   const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
   if (stdout.trim() === '') {return;}
 
