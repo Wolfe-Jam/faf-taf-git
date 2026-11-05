@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **No shell for the commit message** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): the CLI ran `git commit -m "<message>"` through a shell, so `--message 'x$(touch INJECTED)y'` ran a command. Every git call now takes an argument list.
 - **Receipt commits hold `.taf` only** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39), and the `target-branch` path in this release): `git add` and `git commit` name `-- .taf`, so whatever else is staged stays out of the receipt.
+- **`target-branch` with a step `working-directory`:** the first run committed the repository's other tracked files onto the receipts branch (the orphan init kept the whole index, and `git rm -rf .` only cleared the subfolder). The receipts branch now gets that `.taf` only. A receipts branch created this way by 2.5.0 or earlier keeps the files it already has: delete it, or remove them by hand.
 - **The Action never writes git config** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): it used `git config --global user.name/user.email`, which on a developer machine replaces their identity for every repo. The bot identity now goes to each git command as `GIT_AUTHOR_*` / `GIT_COMMITTER_*`.
 
 ### Changed

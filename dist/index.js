@@ -33259,7 +33259,7 @@ async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
             fs.writeFileSync(tafPath, minimal, 'utf-8');
             core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
         }
-        await exec.exec('git', ['add', '.taf'], execOptions);
+        await exec.exec('git', ['add', '--', '.taf'], execOptions);
         await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
         core.info(`Created new branch: ${targetBranch}`);
     }
@@ -33272,7 +33272,7 @@ async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
 async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
     const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
     // Check if there are changes to commit
-    await exec.exec('git', ['add', '.taf'], execOptions);
+    await exec.exec('git', ['add', '--', '.taf'], execOptions);
     const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
     if (stdout.trim() === '') {
         return;

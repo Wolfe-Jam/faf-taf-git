@@ -159,7 +159,9 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
  */
 function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger: (msg: string) => void = console.log): void {
   try {
-    const opts = { cwd, stdio: 'pipe' as const };
+    // env passed explicitly (the same as the default): it is the process.env
+    // the caller sees, so a test that clears GIT_DIR clears it for git too.
+    const opts = { cwd, stdio: 'pipe' as const, env: process.env };
 
     // Arguments, never a shell string: the message is the user's text.
     // Every step names .taf, so nothing else that is staged is committed.

@@ -12,6 +12,12 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+// Any exported GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a git hook, a wrapper)
+// would point every git call below at another repository. Drop them for this file.
+for (const k of Object.keys(process.env)) {
+  if (k.startsWith('GIT_')) {delete process.env[k];}
+}
+
 const BUNDLE = path.join(__dirname, '..', 'dist', 'index.js');
 const JEST_OUT = 'Tests:       3 passed, 3 total\n';
 
@@ -60,16 +66,24 @@ describe('built Action: git safety', () => {
     expect(local.stdout.trim()).toBe('');
   });
 
-  test('F1: target-branch receipt commit holds .taf only, staged work stays out', () => {
+  test('F1: run from a subfolder, the target-branch receipt commit holds that .taf only', () => {
+    // A step `working-directory: pkg`: the Action's cwd is a subfolder.
+    // `checkout --orphan` keeps the whole index and `git rm -rf .` from pkg/
+    // only clears pkg/, so without `-- .taf` the init commit took every other
+    // tracked file onto the receipts branch.
     const { repo, env, globalCfg, out } = setup();
     const before = fs.readFileSync(globalCfg, 'utf-8');
-    fs.writeFileSync(path.join(repo, 'wip.txt'), 'work in progress\n');
-    git(repo, ['add', 'wip.txt'], env);
-    const r = runAction(repo, env, { 'test-output-file': out, 'target-branch': 'taf-receipts' });
+    fs.mkdirSync(path.join(repo, 'pkg'));
+    fs.mkdirSync(path.join(repo, 'src'));
+    fs.writeFileSync(path.join(repo, 'pkg', '.taf'), 'test_history: []\n');
+    fs.writeFileSync(path.join(repo, 'src', 'app.js'), 'console.log(1);\n');
+    git(repo, ['add', 'pkg/.taf', 'src/app.js'], env);
+    git(repo, ['commit', '-q', '-m', 'pkg'], env);
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out, 'target-branch': 'taf-receipts' });
     expect(r.status).toBe(0);
     git(repo, ['fetch', '-q', 'origin', 'taf-receipts'], env);
-    const files = git(repo, ['ls-tree', '--name-only', 'FETCH_HEAD'], env).trim().split('\n');
-    expect(files).toEqual(['.taf']);
+    const files = git(repo, ['ls-tree', '-r', '--name-only', 'FETCH_HEAD'], env).trim().split('\n');
+    expect(files).toEqual(['pkg/.taf']);
     expect(git(repo, ['log', '-1', '--format=%an', 'FETCH_HEAD'], env).trim()).toBe('faf-taf-git[bot]');
     expect(fs.readFileSync(globalCfg, 'utf-8')).toBe(before);
   });

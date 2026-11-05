@@ -15,8 +15,15 @@ import * as path from 'path';
 import { runTafGit } from '../src/cli';
 import { botGitEnv } from '../src/git-env';
 
+// Any exported GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a git hook, a wrapper)
+// would point every git call below at another repository. Drop them for this file.
+// Jest gives each file its own process.env copy, so git calls pass it explicitly.
+for (const k of Object.keys(process.env)) {
+  if (k.startsWith('GIT_')) {delete process.env[k];}
+}
+
 const git = (cwd: string, ...args: string[]): string =>
-  execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).toString();
+  execFileSync('git', args, { cwd, env: process.env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).toString();
 
 const JEST_OUT = 'Tests:       3 passed, 3 total\n';
 

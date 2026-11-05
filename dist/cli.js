@@ -158,7 +158,9 @@ async function runTafGit(options = {}) {
  */
 function commitTafUpdate(cwd, message, verbose, logger = console.log) {
     try {
-        const opts = { cwd, stdio: 'pipe' };
+        // env passed explicitly (the same as the default): it is the process.env
+        // the caller sees, so a test that clears GIT_DIR clears it for git too.
+        const opts = { cwd, stdio: 'pipe', env: process.env };
         // Arguments, never a shell string: the message is the user's text.
         // Every step names .taf, so nothing else that is staged is committed.
         (0, child_process_1.execFileSync)('git', ['add', '--', '.taf'], opts);
