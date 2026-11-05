@@ -31,6 +31,11 @@ export interface CLIResult {
  */
 export declare function runTafGit(options?: CLIOptions): Promise<CLIResult>;
 /**
+ * The value of an option, written `--name value` or `--name=value`; undefined
+ * when it isn't there or has no value.
+ */
+export declare function optionValue(args: string[], name: string): string | undefined;
+/**
  * The installed package's version. package.json sits one level above both
  * src/ (tests) and dist/ (the published bin).
  */

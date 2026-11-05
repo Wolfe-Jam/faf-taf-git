@@ -53,6 +53,9 @@ outputs:
   taf-updated:
     description: 'Whether .taf file was updated (true/false)'
 
+  receipt-pushed:
+    description: 'Whether the receipt reached the remote (true/false). false with no upstream to push to; a push that fails fails the step'
+
 runs:
   using: 'node24'
   main: 'dist/index.js'

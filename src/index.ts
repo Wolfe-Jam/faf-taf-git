@@ -8,95 +8,108 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
 import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
 import { parseSkippedNamesCap } from './skipped-names';
-import { botGitEnv } from './git-env';
+import { botGitEnv, pushFailureReason } from './git-env';
 import { pushReceipt } from './receipt-push';
 
-/**
- * Switch to a dedicated target branch for TAF receipts.
- * Creates the branch as an orphan on first run, seeded with existing .taf.
- */
-async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: string | null): Promise<void> {
-  const execOptions = { cwd, env: botGitEnv() };
+/** The .taf a new receipts branch starts with when the source branch has none. */
+function minimalTaf(projectName: string): string {
+  return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
+}
 
-  // Check if target branch exists on remote
-  const { exitCode } = await exec.getExecOutput(
-    'git', ['ls-remote', '--exit-code', 'origin', targetBranch],
-    { ...execOptions, ignoreReturnCode: true }
-  );
-
-  if (exitCode === 0) {
-    // Branch exists — fetch and checkout
-    // Stash any working tree changes (e.g. dist/ from build step) to allow clean checkout
-    await exec.exec('git', ['stash', '--include-untracked'], execOptions);
-    await exec.exec('git', ['fetch', 'origin', targetBranch], execOptions);
-    await exec.exec('git', ['checkout', targetBranch], execOptions);
-    core.info(`Switched to existing branch: ${targetBranch}`);
-  } else {
-    // Branch doesn't exist — create orphan
-    await exec.exec('git', ['checkout', '--orphan', targetBranch], execOptions);
-    await exec.getExecOutput('git', ['rm', '-rf', '.'], { ...execOptions, ignoreReturnCode: true });
-
-    const tafPath = path.join(cwd, '.taf');
-
-    if (tafSeed) {
-      // Seed with existing .taf from source branch
-      fs.writeFileSync(tafPath, tafSeed, 'utf-8');
-      core.info(`Seeded ${targetBranch} with existing .taf data`);
-    } else {
-      // No seed — create minimal valid YAML so updateTafFile can populate test_history.
-      // Without this, `git add .taf` fails with exit 128 (pathspec did not match)
-      // when consumer repo has no .taf on source branch.
-      const projectName = path.basename(cwd);
-      const minimal =
-        `format_version: 1.0.0\n` +
-        `project: ${projectName}\n` +
-        `created: ${new Date().toISOString()}\n` +
-        `test_history: []\n`;
-      fs.writeFileSync(tafPath, minimal, 'utf-8');
-      core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
-    }
-
-    await exec.exec('git', ['add', '--', '.taf'], execOptions);
-    await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
-    core.info(`Created new branch: ${targetBranch}`);
-  }
+/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws on a non-zero exit. */
+async function gitOut(cwd: string, args: string[], extraEnv: { [key: string]: string } = {}): Promise<string> {
+  const { stdout } = await exec.getExecOutput('git', args, { cwd, env: { ...botGitEnv(), ...extraEnv }, silent: true });
+  return stdout.trim();
 }
 
 /**
- * Commit .taf file changes to git and push. On a receipts branch, a push
- * another run beat is tried again on top of its receipts (see receipt-push.ts);
- * `addReceipt` adds this run's receipt to the fresh .taf.
+ * A worktree of the receipts branch in a temporary folder, so the job's own
+ * checkout is never switched, stashed or emptied (it may be a developer's
+ * checkout). The branch exists → the worktree starts at its tip. It doesn't →
+ * an orphan commit holding only `<subfolder>/.taf` (seeded from the source
+ * branch's .taf, or a minimal one) is made with git plumbing and a temporary
+ * index, then checked out there. Returns the worktree's root.
  */
-async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, addReceipt: () => boolean): Promise<void> {
+async function openReceiptsWorktree(repoRoot: string, rel: string, targetBranch: string, tafSeed: string | null): Promise<string> {
+  const base = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-receipts-'));
+  const worktree = path.join(base, 'wt');
+  const remoteRef = `refs/remotes/origin/${targetBranch}`;
+
+  const { exitCode } = await exec.getExecOutput(
+    'git', ['ls-remote', '--exit-code', 'origin', targetBranch],
+    { cwd: repoRoot, env: botGitEnv(), ignoreReturnCode: true, silent: true }
+  );
+
+  let start: string;
+  if (exitCode === 0) {
+    await gitOut(repoRoot, ['fetch', 'origin', `+refs/heads/${targetBranch}:${remoteRef}`]);
+    start = remoteRef;
+    core.info(`Receipts branch ${targetBranch} exists: adding to it`);
+  } else {
+    const tafText = tafSeed ?? minimalTaf(path.basename(path.join(repoRoot, rel)));
+    const blobFile = path.join(base, 'seed.taf');
+    fs.writeFileSync(blobFile, tafText, 'utf-8');
+    const blob = await gitOut(repoRoot, ['hash-object', '-w', '--', blobFile]);
+    const index = { GIT_INDEX_FILE: path.join(base, 'index') };
+    const tafEntry = rel ? `${rel.split(path.sep).join('/')}/.taf` : '.taf';
+    await gitOut(repoRoot, ['update-index', '--add', '--cacheinfo', `100644,${blob},${tafEntry}`], index);
+    const tree = await gitOut(repoRoot, ['write-tree'], index);
+    start = await gitOut(repoRoot, ['commit-tree', tree, '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`]);
+    core.info(tafSeed ? `Seeded new ${targetBranch} branch with the existing .taf` : `Created new ${targetBranch} branch with an empty .taf`);
+  }
+
+  await gitOut(repoRoot, ['worktree', 'add', '--detach', worktree, start]);
+  return worktree;
+}
+
+/** Remove the receipts worktree and its temporary folder. */
+async function closeReceiptsWorktree(repoRoot: string, worktree: string): Promise<void> {
+  await exec.getExecOutput('git', ['worktree', 'remove', '--force', worktree], { cwd: repoRoot, ignoreReturnCode: true, silent: true });
+  fs.rmSync(path.dirname(worktree), { recursive: true, force: true });
+  await exec.getExecOutput('git', ['worktree', 'prune'], { cwd: repoRoot, ignoreReturnCode: true, silent: true });
+}
+
+/**
+ * Commit the receipt and push it. On a receipts branch, a push another run
+ * beat is tried again on top of its receipts (see receipt-push.ts);
+ * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
+ * receipt reached the remote (null: nothing to push to).
+ */
+async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, addReceipt: () => boolean): Promise<boolean | null> {
   const execOptions = { cwd, env: botGitEnv() };
 
   // Check if there are changes to commit
   await exec.exec('git', ['add', '--', '.taf'], execOptions);
   const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
-  if (stdout.trim() === '') {return;}
+  if (stdout.trim() === '') {return null;}
 
   if (targetBranch) {
     const git = (args: string[]) => exec.exec('git', args, { ...execOptions, ignoreReturnCode: true });
     const { pushed, attempts } = await pushReceipt(git, targetBranch, message, addReceipt);
-    if (pushed) {
-      if (attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);}
-    } else {
-      core.warning(`Could not push the receipt to ${targetBranch} after ${attempts} tries`);
-    }
-    return;
+    if (pushed && attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);}
+    if (!pushed) {core.setFailed(`The receipt did not reach ${targetBranch}: the push failed ${attempts} times`);}
+    return pushed;
   }
 
   // Name .taf so nothing else that is staged goes into the receipt commit.
   await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
-  try {
-    await exec.exec('git', ['push'], execOptions);
-  } catch (error) {
-    core.warning('Could not push changes (this is ok in some CI environments)');
+  const upstream = await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { ...execOptions, ignoreReturnCode: true, silent: true });
+  if (upstream.exitCode !== 0) {
+    core.info('Receipt committed. This branch has no upstream (a pull request checkout, say), so it was not pushed. Use target-branch to keep receipts.');
+    return null;
   }
+  const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
+  if (push.exitCode !== 0) {
+    const why = pushFailureReason(push.stderr);
+    core.setFailed(`The receipt is committed but not pushed: ${why}. With target-branch, a push another run beat is tried again.`);
+    return false;
+  }
+  return true;
 }
 
 async function run(): Promise<void> {
@@ -155,49 +168,56 @@ async function run(): Promise<void> {
     core.setOutput('total', testResults.total.toString());
     core.setOutput('skipped', (testResults.skipped ?? 0).toString());
 
-    // If target-branch is set, save .taf seed and switch branches
-    let tafSeed: string | null = null;
-    const tafPath = path.join(cwd, '.taf');
-
+    // With target-branch the receipt goes to that branch, written in a
+    // separate worktree: this checkout is left exactly as it is.
+    let workCwd = cwd;
+    let repoRoot = '';
+    let worktree = '';
     if (targetBranch) {
-      // Save existing .taf from source branch as seed for first-run
-      if (fs.existsSync(tafPath)) {
-        tafSeed = fs.readFileSync(tafPath, 'utf-8');
+      const sourceTaf = path.join(cwd, '.taf');
+      const tafSeed = fs.existsSync(sourceTaf) ? fs.readFileSync(sourceTaf, 'utf-8') : null;
+      repoRoot = await gitOut(cwd, ['rev-parse', '--show-toplevel']);
+      const rel = path.relative(fs.realpathSync(repoRoot), fs.realpathSync(cwd));
+      worktree = await openReceiptsWorktree(repoRoot, rel, targetBranch, tafSeed);
+      workCwd = path.join(worktree, rel);
+    }
+    try {
+      const tafPath = path.join(workCwd, '.taf');
+
+      // Check if .taf file exists (on current or target branch)
+      if (!fs.existsSync(tafPath)) {
+        core.setFailed(NO_TAF_FILE);
+        return;
       }
-      core.info(`Switching to target branch: ${targetBranch}`);
-      await switchToTargetBranch(cwd, targetBranch, tafSeed);
+
+      // Update .taf file
+      const updated = await updateTafFile(tafPath, testResults, { skippedNamesCap });
+
+      if (!updated) {
+        core.setOutput('taf-updated', 'false');
+        core.setFailed('.taf file was not updated');
+        return;
+      }
+
+      core.setOutput('taf-updated', 'true');
+      core.info('✅ .taf file updated successfully');
+
+      // Commit changes if enabled
+      if (autoCommit) {
+        const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
+        core.setOutput('receipt-pushed', String(pushed === true));
+        if (pushed) {core.info(`✅ Receipt pushed${targetBranch ? ` to ${targetBranch}` : ''}`);}
+      }
+
+      // Skipped names: from the receipt actually written (after any push retry).
+      core.setOutput('newly-skipped', (lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
+      if (lastUpdate.skippedTests?.newly_skipped?.length) {
+        core.info(`Newly skipped: ${lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
+      }
+      if (lastUpdate.skippedNamesNote) core.info(`Skipped names not written: ${lastUpdate.skippedNamesNote}`);
+    } finally {
+      if (worktree) {await closeReceiptsWorktree(repoRoot, worktree);}
     }
-
-    // Check if .taf file exists (on current or target branch)
-    if (!fs.existsSync(tafPath)) {
-      core.setFailed(NO_TAF_FILE);
-      return;
-    }
-
-    // Update .taf file
-    const updated = await updateTafFile(tafPath, testResults, { skippedNamesCap });
-
-    if (!updated) {
-      core.setOutput('taf-updated', 'false');
-      core.setFailed('.taf file was not updated');
-      return;
-    }
-
-    core.setOutput('taf-updated', 'true');
-    core.info('✅ .taf file updated successfully');
-
-    // Commit changes if enabled
-    if (autoCommit) {
-      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
-      core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
-    }
-
-    // Skipped names: from the receipt actually written (after any push retry).
-    core.setOutput('newly-skipped', (lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
-    if (lastUpdate.skippedTests?.newly_skipped?.length) {
-      core.info(`Newly skipped: ${lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
-    }
-    if (lastUpdate.skippedNamesNote) core.info(`Skipped names not written: ${lastUpdate.skippedNamesNote}`);
 
   } catch (error) {
     if (error instanceof Error) {

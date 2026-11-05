@@ -175,6 +175,7 @@ The action provides several outputs you can use:
 - `skipped` - Number of skipped tests
 - `newly-skipped` - Skipped in this run but not in the previous receipt (2.5.0)
 - `taf-updated` - Whether .taf was modified
+- `receipt-pushed` - Whether the receipt reached the remote. A push that fails fails the step; with no upstream (a pull request checkout) the receipt is committed, not pushed
 
 ## Workflow Patterns
 
@@ -255,9 +256,11 @@ Tests: 173 passed, 173 total
 
 ### Commits not pushing
 
+A receipt that can't be pushed fails the step, with git's reason in the log.
+
 1. Verify `permissions: contents: write` in workflow
 2. Check that `.taf` is not in `.gitignore`
-3. Ensure git is configured properly in the workflow
+3. On a busy branch, use `target-branch: taf-receipts`: a push another run beat is tried again, up to 5 times
 
 ### Action shows "up to date" but .taf wasn't updated
 

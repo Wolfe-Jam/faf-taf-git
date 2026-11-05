@@ -12,3 +12,13 @@ export function botGitEnv(base: NodeJS.ProcessEnv = process.env): { [key: string
   env.GIT_COMMITTER_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
   return env;
 }
+
+/**
+ * The line of a failed `git push`'s stderr that says why: the `[rejected]` /
+ * `error:` / `fatal:` line, not the hint git prints after it.
+ */
+export function pushFailureReason(stderr: string): string {
+  const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
+  const why = lines.find((l) => /\[rejected\]|^error:|^fatal:/.test(l)) ?? lines[lines.length - 1] ?? 'push failed';
+  return why.replace(/\.+$/, '');
+}

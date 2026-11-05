@@ -15,8 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Receipt commits hold `.taf` only** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39), and the `target-branch` path in this release): `git add` and `git commit` name `-- .taf`, so whatever else is staged stays out of the receipt.
 - **`target-branch` with a step `working-directory`:** the first run committed the repository's other tracked files onto the receipts branch (the orphan init kept the whole index, and `git rm -rf .` only cleared the subfolder). The receipts branch now gets that `.taf` only. A receipts branch created this way by 2.5.0 or earlier keeps the files it already has: delete it, or remove them by hand.
 - **The Action never writes git config** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): it used `git config --global user.name/user.email`, which on a developer machine replaces their identity for every repo. The bot identity now goes to each git command as `GIT_AUTHOR_*` / `GIT_COMMITTER_*`.
+- **A receipt write keeps the rest of the file:** comments, key order and any later `---` documents in `.taf` were dropped, because the file was rebuilt from parsed data. It is now edited as a YAML document: only the new receipt and `last_updated` change.
+- **Runs that write the same `.taf` at once each keep their receipt:** 20 parallel runs kept 3–6 receipts. Each write now takes `.taf.lock` and replaces the file atomically (a temp file renamed over it); 20 parallel runs keep 20. A lock older than a minute (a killed run) is taken over.
+- **A receipt that isn't pushed is no longer silent.** CLI `--commit`: a rejected push exits 1 with git's reason and the command to send it (`git pull --rebase && git push`); a branch with no upstream keeps the receipt in a local commit and says so. Action: a rejected push on the current branch, or 5 rejected tries on `target-branch`, fails the step (it was a warning, and the receipt was lost).
+- **`target-branch` no longer touches the job's checkout.** The Action switched the checkout to the receipts branch, stashed changes it never restored, and on the first run emptied the working tree with `git rm -rf .`. On a developer machine that lost staged work. It now writes the receipt in a separate git worktree, in a temporary folder that is removed afterwards: the checkout keeps its branch, its staged work and its files.
+- **`--name=value` works for every CLI option:** `--message=…` was ignored and the default message used.
+
+### Added
+- Action output `receipt-pushed`: `true` when the receipt reached the remote.
 
 ### Changed
+- After a `target-branch` run the job's checkout is still on its own branch. Before, later steps in the same job ran on the receipts branch.
 - **During a merge, the CLI's `--commit` now fails** (`cannot do a partial commit during a merge`) and leaves `.taf` staged. Before, it silently committed your merge as the receipt. Finish the merge, then commit the receipt.
 
 ## [2.5.0] - 2026-11-05 — Named Skips Edition
