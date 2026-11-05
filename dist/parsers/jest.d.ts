@@ -8,6 +8,8 @@ export interface TestResults {
     passed: number;
     failed: number;
     skipped?: number;
+    /** Names of the skipped tests, when the output names them (raw; normalised when written). */
+    skippedNames?: string[];
     result: TestResult;
 }
 /** SKIPPED: tests were found, every one was skipped, so nothing passed or failed. */

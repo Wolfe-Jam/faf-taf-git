@@ -12,6 +12,10 @@ import { join } from 'path';
 import { parseJunitOutput } from '../src/parsers/junit';
 import { parseTestOutput, TestResults } from '../src/parsers';
 
+/** Counts only: skipped names are pinned in skipped-names.test.ts. */
+const counts = <T extends object | null>(r: T): T => (r ? ({ ...r, skippedNames: undefined } as T) : r);
+
+
 const FIXTURES = join(__dirname, 'fixtures', 'junit');
 const fixture = (name: string): string => readFileSync(join(FIXTURES, name), 'utf8');
 
@@ -82,11 +86,11 @@ const CASES: Case[] = [
 describe('JUnit matrix: real runner reports', () => {
   describe.each(CASES)('$runner', ({ file, expected }) => {
     test(`parseJunitOutput gives the runner's own counts (${file})`, () => {
-      expect(parseJunitOutput(fixture(file))).toEqual(expected);
+      expect(counts(parseJunitOutput(fixture(file)))).toEqual(expected);
     });
 
     test(`parseTestOutput routes to JUnit and gives the same result (${file})`, () => {
-      expect(parseTestOutput(fixture(file))).toEqual(expected);
+      expect(counts(parseTestOutput(fixture(file)))).toEqual(expected);
     });
   });
 
@@ -98,12 +102,12 @@ describe('JUnit matrix: real runner reports', () => {
     const xml = fixture('cargo-nextest.xml');
 
     test('reads every test the report contains, with the right result', () => {
-      expect(parseJunitOutput(xml)).toEqual({ total: 3, passed: 2, failed: 1, skipped: undefined, result: 'FAILED' });
+      expect(counts(parseJunitOutput(xml))).toEqual({ total: 3, passed: 2, failed: 1, skipped: undefined, result: 'FAILED' });
       expect(parseTestOutput(xml)?.result).toBe('FAILED');
     });
 
     test.failing("gives the runner's own counts, including the ignored test (not in the report)", () => {
-      expect(parseJunitOutput(xml)).toEqual({ total: 4, passed: 2, failed: 1, skipped: 1, result: 'FAILED' });
+      expect(counts(parseJunitOutput(xml))).toEqual({ total: 4, passed: 2, failed: 1, skipped: 1, result: 'FAILED' });
     });
   });
 
@@ -114,14 +118,14 @@ describe('JUnit matrix: real runner reports', () => {
 
     test('the files concatenated (cat TEST-*.xml) give the runner\'s own counts', () => {
       const expected = { total: 4, passed: 2, failed: 1, skipped: 1, result: 'FAILED' };
-      expect(parseJunitOutput(first + second)).toEqual(expected);
-      expect(parseTestOutput(first + second)).toEqual(expected);
+      expect(counts(parseJunitOutput(first + second))).toEqual(expected);
+      expect(counts(parseTestOutput(first + second))).toEqual(expected);
     });
 
     test('each file alone holds only its own class', () => {
-      expect(parseJunitOutput(first)).toEqual({ total: 2, passed: 1, failed: 1, skipped: undefined, result: 'FAILED' });
+      expect(counts(parseJunitOutput(first))).toEqual({ total: 2, passed: 1, failed: 1, skipped: undefined, result: 'FAILED' });
       // One file alone can say PASSED for a run that failed: pass them all.
-      expect(parseJunitOutput(second)).toEqual({ total: 2, passed: 1, failed: 0, skipped: 1, result: 'PASSED' });
+      expect(counts(parseJunitOutput(second))).toEqual({ total: 2, passed: 1, failed: 0, skipped: 1, result: 'PASSED' });
     });
   });
 });

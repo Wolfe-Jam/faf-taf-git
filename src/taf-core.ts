@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as yaml from 'yaml';
 import { TestResult, TestResults } from './parsers/jest';
+import { buildSkippedTests, DEFAULT_SKIPPED_NAMES_CAP, SkippedTestsBlock } from './skipped-names';
 
 interface TAFFile {
   format_version?: string;
@@ -29,7 +30,22 @@ interface TestRun {
   };
   command?: string;
   trigger?: string;
+  skipped_tests?: SkippedTestsBlock;
 }
+
+export interface UpdateOptions {
+  /** Skipped names to write; 0 turns the skipped_tests block off. */
+  skippedNamesCap?: number;
+}
+
+/** What the last updateTafFile call wrote, for outputs and logs. */
+export interface UpdateReport {
+  skippedTests?: SkippedTestsBlock;
+  /** Why no skipped_tests block was written although tests were skipped. */
+  skippedNamesNote?: string;
+}
+
+export const lastUpdate: UpdateReport = {};
 
 /**
  * Update .taf file with new test results
@@ -37,7 +53,8 @@ interface TestRun {
  */
 export function updateTafFile(
   tafPath: string,
-  testResults: TestResults
+  testResults: TestResults,
+  options: UpdateOptions = {}
 ): boolean {
   try {
     let taf: TAFFile;
@@ -64,6 +81,20 @@ export function updateTafFile(
       },
       trigger: runTrigger(),
     };
+
+    // Skipped names, compared with the receipt before this one. On a push-race
+    // retry this runs again against the receipts that won, so the diff is
+    // always against the true previous receipt.
+    const previous = taf.test_history[taf.test_history.length - 1];
+    const skipped = buildSkippedTests(
+      testResults.skippedNames,
+      testResults.skipped ?? 0,
+      previous,
+      options.skippedNamesCap ?? DEFAULT_SKIPPED_NAMES_CAP,
+    );
+    if (skipped.block) run.skipped_tests = skipped.block;
+    lastUpdate.skippedTests = skipped.block;
+    lastUpdate.skippedNamesNote = skipped.reason;
 
     // Append to history
     taf.test_history.push(run);

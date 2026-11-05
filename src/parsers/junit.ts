@@ -7,6 +7,7 @@
  */
 
 import { TestResults } from './jest';
+import { decodeXmlEntities } from '../skipped-names';
 
 const SUITE_TAG = /<(\/?)testsuite\b([^>]*?)(\/?)>/g;
 
@@ -45,6 +46,30 @@ function countsFromTestcases(xml: string): Counts {
     else if (/<skipped\b/.test(body)) counts.skipped++;
   }
   return counts;
+}
+
+/** One string attribute of a tag, entities decoded; undefined when absent. */
+function textAttr(attrs: string, name: string): string | undefined {
+  const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`));
+  return match ? decodeXmlEntities(match[1] ?? match[2] ?? '') : undefined;
+}
+
+/**
+ * Names of the skipped <testcase>s: "classname > name", or just the name when
+ * the class adds nothing (jest-junit repeats the name as the class).
+ */
+function skippedNamesFromTestcases(xml: string): string[] {
+  const names: string[] = [];
+  const testcase = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+  let match: RegExpExecArray | null;
+  while ((match = testcase.exec(xml)) !== null) {
+    const body = match[2] ?? '';
+    if (/<(failure|error)\b/.test(body) || !/<skipped\b/.test(body)) continue;
+    const name = textAttr(match[1], 'name') ?? '';
+    const cls = textAttr(match[1], 'classname');
+    names.push(cls && cls !== name && !name.includes(cls) ? `${cls} > ${name}` : name);
+  }
+  return names;
 }
 
 /**
@@ -120,6 +145,7 @@ export function parseJunitOutput(output: string): TestResults | null {
     passed,
     failed: counts.failed,
     skipped: counts.skipped > 0 ? counts.skipped : undefined,
+    skippedNames: counts.skipped > 0 ? skippedNamesFromTestcases(xml) : undefined,
     result: counts.failed > 0 ? 'FAILED' : 'PASSED',
   };
 }

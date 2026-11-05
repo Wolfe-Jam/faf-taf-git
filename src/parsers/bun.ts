@@ -70,8 +70,33 @@ export function parseBunOutput(output: string): TestResults | null {
     passed,
     failed,
     skipped: skipped > 0 ? skipped : undefined,
+    skippedNames: skipped > 0 ? bunSkippedNames(cleanOutput) : undefined,
     result,
   };
+}
+
+/**
+ * Names of skipped and todo tests: `(skip) outer > name` and `(todo) name`
+ * lines, each prefixed with its file header (`a.test.ts:` in a terminal,
+ * `::group::a.test.ts:` in GitHub Actions). Undefined when bun printed no
+ * per-test lines (it omits them when it detects an AI agent running it).
+ */
+function bunSkippedNames(cleanOutput: string): string[] | undefined {
+  const names: string[] = [];
+  let file = '';
+  let sawTestLine = false;
+  for (const line of cleanOutput.split('\n')) {
+    const header = line.match(/^(?:::group::)?(\S.*?):\s*$/);
+    if (header && !/^\(/.test(line)) {
+      file = header[1];
+      continue;
+    }
+    const test = line.match(/^\((skip|todo|pass|fail)\)\s+(.*)$/);
+    if (!test) continue;
+    sawTestLine = true;
+    if (test[1] === 'skip' || test[1] === 'todo') names.push(file ? `${file} > ${test[2]}` : test[2]);
+  }
+  return sawTestLine ? names : undefined;
 }
 
 /**

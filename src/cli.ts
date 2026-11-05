@@ -10,7 +10,8 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
-import { NO_TAF_FILE, updateTafFile } from './taf-core';
+import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
+import { parseSkippedNamesCap } from './skipped-names';
 import { generateBadge } from './badge';
 
 export interface CLIOptions {
@@ -18,6 +19,8 @@ export interface CLIOptions {
   autoCommit?: boolean;
   commitMessage?: string;
   cwd?: string;
+  /** Skipped names per receipt; 0 turns them off (default 25). */
+  skippedNamesCap?: number;
   verbose?: boolean;
   logger?: (message: string) => void;
 }
@@ -106,10 +109,12 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
     }
 
     // Update .taf file
-    const updated = await updateTafFile(tafPath, testResults);
+    const updated = await updateTafFile(tafPath, testResults, { skippedNamesCap: options.skippedNamesCap });
 
     if (updated) {
       if (verbose) logger('.taf file updated successfully');
+      if (lastUpdate.skippedTests?.newly_skipped?.length) logger(`Newly skipped: ${lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
+      if (lastUpdate.skippedNamesNote) logger(`Skipped names not written: ${lastUpdate.skippedNamesNote}`);
 
       // Commit changes if enabled
       if (autoCommit) {
@@ -250,7 +255,7 @@ async function main() {
 
   // Show help
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`\nfaf-taf-git - The Git-Native Receipt Printer\n\nUSAGE:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt [OPTIONS]\n\n  # WJTTC / pc-ai bar\n  node tests/wjttc/run-wjttc.mjs 2>&1 | tee wjttc-out.txt\n  npx faf-taf-git --file wjttc-out.txt\n\nCOMMANDS:\n  badge               Generate a shields.io-style SVG badge from .taf\n\nOPTIONS:\n  --file <path>       Path to test output file (required)\n  --commit            Auto-commit .taf changes to git\n  --message <msg>     Custom commit message\n  --cwd <dir>         Working directory (default: current)\n  --verbose, -v       Verbose output\n  --version, -V       Print the version\n  --help, -h          Show this help\n\nPARSERS:\n  JUnit XML (pytest, cargo, Go, Java, .NET ...), Bun, WJTTC (pc-ai bar), Jest, Vitest\n\nEXAMPLES:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt\n\n  npx faf-taf-git --file test-output.txt --commit\n\n  npx faf-taf-git badge --output badge.svg\n\nPLATFORM SUPPORT:\n  Works in ANY CI/CD that runs Node.js:\n  GitHub Actions, GitLab CI, Jenkins, CircleCI,\n  Bitbucket Pipelines, Azure Pipelines, local dev\n\nLEARN MORE:\n  https://github.com/Wolfe-Jam/faf-taf-git\n`);
+    console.log(`\nfaf-taf-git - The Git-Native Receipt Printer\n\nUSAGE:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt [OPTIONS]\n\n  # WJTTC / pc-ai bar\n  node tests/wjttc/run-wjttc.mjs 2>&1 | tee wjttc-out.txt\n  npx faf-taf-git --file wjttc-out.txt\n\nCOMMANDS:\n  badge               Generate a shields.io-style SVG badge from .taf\n\nOPTIONS:\n  --file <path>       Path to test output file (required)\n  --commit            Auto-commit .taf changes to git\n  --message <msg>     Custom commit message\n  --cwd <dir>         Working directory (default: current)\n  --skipped-names <n> Skipped test names per receipt (default 25, 0 = off)\n  --verbose, -v       Verbose output\n  --version, -V       Print the version\n  --help, -h          Show this help\n\nPARSERS:\n  JUnit XML (pytest, cargo, Go, Java, .NET ...), Bun, WJTTC (pc-ai bar), Jest, Vitest\n\nEXAMPLES:\n  npm test 2>&1 | tee test-output.txt\n  npx faf-taf-git --file test-output.txt\n\n  npx faf-taf-git --file test-output.txt --commit\n\n  npx faf-taf-git badge --output badge.svg\n\nPLATFORM SUPPORT:\n  Works in ANY CI/CD that runs Node.js:\n  GitHub Actions, GitLab CI, Jenkins, CircleCI,\n  Bitbucket Pipelines, Azure Pipelines, local dev\n\nLEARN MORE:\n  https://github.com/Wolfe-Jam/faf-taf-git\n`);
     process.exit(0);
   }
 
@@ -279,6 +284,17 @@ async function main() {
   const cwdIndex = args.indexOf('--cwd');
   if (cwdIndex !== -1 && args[cwdIndex + 1]) {
     options.cwd = args[cwdIndex + 1];
+  }
+
+  // Parse --skipped-names
+  const skippedIndex = args.indexOf('--skipped-names');
+  if (skippedIndex !== -1) {
+    try {
+      options.skippedNamesCap = parseSkippedNamesCap(args[skippedIndex + 1]);
+    } catch (error) {
+      console.error((error as Error).message);
+      process.exit(1);
+    }
   }
 
   // Run the tool

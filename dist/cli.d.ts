@@ -10,6 +10,8 @@ export interface CLIOptions {
     autoCommit?: boolean;
     commitMessage?: string;
     cwd?: string;
+    /** Skipped names per receipt; 0 turns them off (default 25). */
+    skippedNamesCap?: number;
     verbose?: boolean;
     logger?: (message: string) => void;
 }

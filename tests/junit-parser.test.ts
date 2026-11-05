@@ -5,6 +5,10 @@
 import { parseJunitOutput } from '../src/parsers/junit';
 import { parseTestOutput, SUPPORTED_PARSERS } from '../src/parsers';
 
+/** Counts only: skipped names are pinned in skipped-names.test.ts. */
+const counts = <T extends object | null>(r: T): T => (r ? ({ ...r, skippedNames: undefined } as T) : r);
+
+
 describe('JUnit XML Parser', () => {
   describe('parseJunitOutput', () => {
     test('should parse a pytest report (<testsuites> root without totals)', () => {
@@ -14,7 +18,7 @@ describe('JUnit XML Parser', () => {
 <testcase classname="tests.test_a" name="test_bad" time="0.002"><failure message="assert 1 == 2">assert 1 == 2</failure></testcase>
 </testsuite></testsuites>`;
       const result = parseJunitOutput(output);
-      expect(result).toEqual({ total: 12, passed: 9, failed: 1, skipped: 2, result: 'FAILED' });
+      expect(counts(result)).toEqual({ total: 12, passed: 9, failed: 1, skipped: 2, result: 'FAILED' });
     });
 
     test('should use the totals on a <testsuites> root (gotestsum, Maven)', () => {
@@ -22,7 +26,7 @@ describe('JUnit XML Parser', () => {
   <testsuite name="pkg/a" tests="25" failures="0" errors="0" skipped="1"></testsuite>
   <testsuite name="pkg/b" tests="15" failures="0" errors="0" skipped="2"></testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 40, passed: 37, failed: 0, skipped: 3, result: 'PASSED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 40, passed: 37, failed: 0, skipped: 3, result: 'PASSED' });
     });
 
     test('should sum the suites when the root has no totals (cargo2junit)', () => {
@@ -32,13 +36,13 @@ describe('JUnit XML Parser', () => {
   </testsuite>
   <testsuite id="1" name="integration" tests="8" errors="1" failures="0" skipped="0" time="0"></testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 38, passed: 37, failed: 1, skipped: undefined, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 38, passed: 37, failed: 1, skipped: undefined, result: 'FAILED' });
     });
 
     test('should parse a single <testsuite> root', () => {
       const output = `<?xml version="1.0"?>
 <testsuite name="jest tests" tests="7" failures="0" errors="0" skipped="0"></testsuite>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 7, passed: 7, failed: 0, skipped: undefined, result: 'PASSED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 7, passed: 7, failed: 0, skipped: undefined, result: 'PASSED' });
     });
 
     test('should count nested suites once (outermost level only)', () => {
@@ -62,7 +66,7 @@ describe('JUnit XML Parser', () => {
 		</testsuite>
 	</testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
     });
 
     test('node:test top-level tests beside a describe: a failing top-level test is not dropped', () => {
@@ -75,7 +79,7 @@ describe('JUnit XML Parser', () => {
 		<testcase name="todo" classname="test"><skipped type="todo" message="true"/></testcase>
 	</testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 5, passed: 2, failed: 1, skipped: 2, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 5, passed: 2, failed: 1, skipped: 2, result: 'FAILED' });
     });
 
     test('nested suites with a test beside the inner suite: every testcase counts', () => {
@@ -85,17 +89,17 @@ describe('JUnit XML Parser', () => {
     <testsuite name="inner" tests="2" failures="0"><testcase name="a"/><testcase name="b"/></testsuite>
   </testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 3, failed: 0, skipped: undefined, result: 'PASSED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 3, passed: 3, failed: 0, skipped: undefined, result: 'PASSED' });
     });
 
     test('should count failures and errors together as failed', () => {
       const output = `<testsuite tests="10" failures="2" errors="1" skipped="1"></testsuite>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 10, passed: 6, failed: 3, skipped: 1, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 10, passed: 6, failed: 3, skipped: 1, result: 'FAILED' });
     });
 
     test('should count disabled tests as skipped', () => {
       const output = `<testsuites tests="6" failures="0" errors="0" disabled="2"></testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 6, passed: 4, failed: 0, skipped: 2, result: 'PASSED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 6, passed: 4, failed: 0, skipped: 2, result: 'PASSED' });
     });
 
     test('should count <testcase> elements when the suites carry no counts', () => {
@@ -105,7 +109,7 @@ describe('JUnit XML Parser', () => {
   <testcase name="c"><skipped /></testcase>
   <testcase name="d"><error message="crash" /></testcase>
 </testsuite></testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 4, passed: 1, failed: 2, skipped: 1, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 4, passed: 1, failed: 2, skipped: 1, result: 'FAILED' });
     });
 
     test('should accept single-quoted attributes', () => {
@@ -115,7 +119,7 @@ describe('JUnit XML Parser', () => {
     test('should ignore a commented-out suite', () => {
       const output = `<!-- <testsuite tests="99" failures="9"></testsuite> -->
 <testsuite tests="2" failures="0"></testsuite>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 2, passed: 2, failed: 0, skipped: undefined, result: 'PASSED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 2, passed: 2, failed: 0, skipped: undefined, result: 'PASSED' });
     });
 
     test('should count skipped testcases when the counts leave skipped out (gotestsum)', () => {
@@ -132,7 +136,7 @@ describe('JUnit XML Parser', () => {
 		</testcase>
 	</testsuite>
 </testsuites>`;
-      expect(parseJunitOutput(output)).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
+      expect(counts(parseJunitOutput(output))).toEqual({ total: 3, passed: 1, failed: 1, skipped: 1, result: 'FAILED' });
     });
 
     test('should return null for a report with zero tests', () => {
@@ -166,7 +170,7 @@ describe('JUnit XML Parser', () => {
 describe('every test skipped', () => {
   test('is SKIPPED, not PASSED', () => {
     const output = `<testsuite name="t" tests="2" failures="0" errors="0" skipped="2"></testsuite>`;
-    expect(parseTestOutput(output)).toEqual({ total: 2, passed: 0, failed: 0, skipped: 2, result: 'SKIPPED' });
+    expect(counts(parseTestOutput(output))).toEqual({ total: 2, passed: 0, failed: 0, skipped: 2, result: 'SKIPPED' });
   });
 
   test('one pass among skips is still PASSED', () => {

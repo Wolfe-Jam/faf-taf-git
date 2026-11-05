@@ -10,7 +10,8 @@ import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
-import { NO_TAF_FILE, updateTafFile } from './taf-core';
+import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
+import { parseSkippedNamesCap } from './skipped-names';
 import { pushReceipt } from './receipt-push';
 
 /**
@@ -111,6 +112,7 @@ async function run(): Promise<void> {
     const autoCommit = core.getInput('auto-commit') !== 'false';
     const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
     const targetBranch = core.getInput('target-branch') || '';
+    const skippedNamesCap = parseSkippedNamesCap(core.getInput('skipped-names'));
     const cwd = process.cwd();
 
     core.info(`Reading test output from: ${testOutputFile}`);
@@ -179,7 +181,7 @@ async function run(): Promise<void> {
     }
 
     // Update .taf file
-    const updated = await updateTafFile(tafPath, testResults);
+    const updated = await updateTafFile(tafPath, testResults, { skippedNamesCap });
 
     if (!updated) {
       core.setOutput('taf-updated', 'false');
@@ -192,9 +194,16 @@ async function run(): Promise<void> {
 
     // Commit changes if enabled
     if (autoCommit) {
-      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults));
+      await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
       core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
     }
+
+    // Skipped names: from the receipt actually written (after any push retry).
+    core.setOutput('newly-skipped', (lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
+    if (lastUpdate.skippedTests?.newly_skipped?.length) {
+      core.info(`Newly skipped: ${lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
+    }
+    if (lastUpdate.skippedNamesNote) core.info(`Skipped names not written: ${lastUpdate.skippedNamesNote}`);
 
   } catch (error) {
     if (error instanceof Error) {

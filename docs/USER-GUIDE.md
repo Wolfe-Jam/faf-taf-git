@@ -119,6 +119,31 @@ Handle commits yourself:
     git push
 ```
 
+### Skipped Test Names
+
+From 2.5.0 each receipt names the skipped tests (up to 25), with a hash of the full set and what changed since the previous receipt, so a skipped count that stays at 3 can't hide a different 3:
+
+```yaml
+    skipped_tests:
+      names:
+        - "a.test.ts > outer > skipped one"
+      hash: sha256:…
+      newly_skipped:
+        - "a.test.ts > outer > skipped one"
+```
+
+Names come from JUnit XML (`<testcase>` with `<skipped/>`) and from Bun's output. Change how many are written, or turn it off:
+
+```yaml
+- uses: Wolfe-Jam/faf-taf-git@v2.5.0
+  with:
+    test-output-file: test-output.txt
+    target-branch: taf-receipts
+    skipped-names: 0   # off; default 25
+```
+
+The block is left off, with a one-line note in the log, when the output doesn't name every skipped test (Jest and Vitest print names only in verbose mode, for example). Let one job per branch write receipts, or the "newly skipped" list compares different suites.
+
 ## Using Outputs
 
 The action provides several outputs you can use:
@@ -143,10 +168,12 @@ The action provides several outputs you can use:
 
 ### Available Outputs
 
-- `result` - PASSED, FAILED, IMPROVED, or DEGRADED
+- `result` - PASSED, FAILED, SKIPPED, IMPROVED, or DEGRADED
 - `passed` - Number of passing tests
 - `failed` - Number of failing tests
 - `total` - Total test count
+- `skipped` - Number of skipped tests
+- `newly-skipped` - Skipped in this run but not in the previous receipt (2.5.0)
 - `taf-updated` - Whether .taf was modified
 
 ## Workflow Patterns

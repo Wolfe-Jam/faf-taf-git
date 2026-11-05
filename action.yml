@@ -26,9 +26,14 @@ inputs:
     required: false
     default: ''
 
+  skipped-names:
+    description: 'How many skipped test names to write on each receipt, with a hash of the full set and what changed since the last receipt. 0 turns it off.'
+    required: false
+    default: '25'
+
 outputs:
   result:
-    description: 'Test result (PASSED, FAILED, IMPROVED, DEGRADED)'
+    description: 'Test result (PASSED, FAILED, SKIPPED, IMPROVED, DEGRADED)'
 
   passed:
     description: 'Number of tests passed'
@@ -41,6 +46,9 @@ outputs:
 
   skipped:
     description: 'Number of tests skipped'
+
+  newly-skipped:
+    description: 'Number of tests skipped in this run that were not skipped in the previous receipt'
 
   taf-updated:
     description: 'Whether .taf file was updated (true/false)'

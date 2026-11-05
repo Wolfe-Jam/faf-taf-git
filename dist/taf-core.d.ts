@@ -5,11 +5,23 @@
  * Derived from faf-cli TAF implementation (MCP-portable)
  */
 import { TestResults } from './parsers/jest';
+import { SkippedTestsBlock } from './skipped-names';
+export interface UpdateOptions {
+    /** Skipped names to write; 0 turns the skipped_tests block off. */
+    skippedNamesCap?: number;
+}
+/** What the last updateTafFile call wrote, for outputs and logs. */
+export interface UpdateReport {
+    skippedTests?: SkippedTestsBlock;
+    /** Why no skipped_tests block was written although tests were skipped. */
+    skippedNamesNote?: string;
+}
+export declare const lastUpdate: UpdateReport;
 /**
  * Update .taf file with new test results
  * Creates the file if it doesn't exist
  */
-export declare function updateTafFile(tafPath: string, testResults: TestResults): boolean;
+export declare function updateTafFile(tafPath: string, testResults: TestResults, options?: UpdateOptions): boolean;
 /**
  * What fired the run: GitHub Actions, another CI, or a local run
  */

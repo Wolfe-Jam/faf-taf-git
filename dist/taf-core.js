@@ -39,16 +39,18 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NO_TAF_FILE = void 0;
+exports.NO_TAF_FILE = exports.lastUpdate = void 0;
 exports.updateTafFile = updateTafFile;
 exports.runTrigger = runTrigger;
 const fs = __importStar(require("fs"));
 const yaml = __importStar(require("yaml"));
+const skipped_names_1 = require("./skipped-names");
+exports.lastUpdate = {};
 /**
  * Update .taf file with new test results
  * Creates the file if it doesn't exist
  */
-function updateTafFile(tafPath, testResults) {
+function updateTafFile(tafPath, testResults, options = {}) {
     try {
         let taf;
         // Check if .taf exists, create if not
@@ -73,6 +75,15 @@ function updateTafFile(tafPath, testResults) {
             },
             trigger: runTrigger(),
         };
+        // Skipped names, compared with the receipt before this one. On a push-race
+        // retry this runs again against the receipts that won, so the diff is
+        // always against the true previous receipt.
+        const previous = taf.test_history[taf.test_history.length - 1];
+        const skipped = (0, skipped_names_1.buildSkippedTests)(testResults.skippedNames, testResults.skipped ?? 0, previous, options.skippedNamesCap ?? skipped_names_1.DEFAULT_SKIPPED_NAMES_CAP);
+        if (skipped.block)
+            run.skipped_tests = skipped.block;
+        exports.lastUpdate.skippedTests = skipped.block;
+        exports.lastUpdate.skippedNamesNote = skipped.reason;
         // Append to history
         taf.test_history.push(run);
         // Serialize and write back
