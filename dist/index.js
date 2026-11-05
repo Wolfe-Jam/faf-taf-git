@@ -33145,6 +33145,8 @@ module.exports = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.botGitEnv = botGitEnv;
+exports.pushFailureReason = pushFailureReason;
+exports.pushWasBehind = pushWasBehind;
 /**
  * The bot's git identity, given to each git command through the environment.
  * Never written to git config: `git config --global` on a developer's machine
@@ -33162,6 +33164,22 @@ function botGitEnv(base = process.env) {
     env.GIT_COMMITTER_NAME = 'faf-taf-git[bot]';
     env.GIT_COMMITTER_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
     return env;
+}
+/**
+ * Why a `git push` failed, from its stderr: the `[remote rejected]` /
+ * `[rejected]` line (else `error:` / `fatal:`), plus the server's own
+ * `remote:` message when it sent one. Never the hint git prints after them.
+ */
+function pushFailureReason(stderr) {
+    const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
+    const pick = (re) => lines.find((l) => re.test(l));
+    const why = pick(/\[remote rejected\]/) ?? pick(/\[rejected\]/) ?? pick(/^(error|fatal):/) ?? lines[lines.length - 1] ?? 'push failed';
+    const remote = lines.find((l) => /^remote:\s*\S/.test(l) && !/^remote:\s*(Resolving|Counting|Compressing|Total|Enumerating)/.test(l));
+    return [why, remote].filter(Boolean).join(' — ').replace(/\.+$/, '');
+}
+/** True when the push was refused because the remote moved on (pulling first fixes it). */
+function pushWasBehind(stderr) {
+    return /\[rejected\].*\((fetch first|non-fast-forward)\)/.test(stderr);
 }
 
 
@@ -33215,89 +33233,121 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 const fs = __importStar(__nccwpck_require__(9896));
+const os = __importStar(__nccwpck_require__(857));
 const path = __importStar(__nccwpck_require__(6928));
 const parsers_1 = __nccwpck_require__(692);
 const taf_core_1 = __nccwpck_require__(390);
 const skipped_names_1 = __nccwpck_require__(5830);
 const git_env_1 = __nccwpck_require__(5677);
 const receipt_push_1 = __nccwpck_require__(5844);
-/**
- * Switch to a dedicated target branch for TAF receipts.
- * Creates the branch as an orphan on first run, seeded with existing .taf.
- */
-async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
-    const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
-    // Check if target branch exists on remote
-    const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', targetBranch], { ...execOptions, ignoreReturnCode: true });
-    if (exitCode === 0) {
-        // Branch exists — fetch and checkout
-        // Stash any working tree changes (e.g. dist/ from build step) to allow clean checkout
-        await exec.exec('git', ['stash', '--include-untracked'], execOptions);
-        await exec.exec('git', ['fetch', 'origin', targetBranch], execOptions);
-        await exec.exec('git', ['checkout', targetBranch], execOptions);
-        core.info(`Switched to existing branch: ${targetBranch}`);
+/** The .taf a new receipts branch starts with when the source branch has none. */
+function minimalTaf(projectName) {
+    return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
+}
+/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws with git's stderr on a non-zero exit. */
+async function gitOut(cwd, args, extraEnv = {}) {
+    const r = await exec.getExecOutput('git', args, { cwd, env: { ...(0, git_env_1.botGitEnv)(), ...extraEnv }, silent: true, ignoreReturnCode: true });
+    if (r.exitCode !== 0) {
+        throw new Error(`git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`);
     }
-    else {
-        // Branch doesn't exist — create orphan
-        await exec.exec('git', ['checkout', '--orphan', targetBranch], execOptions);
-        await exec.getExecOutput('git', ['rm', '-rf', '.'], { ...execOptions, ignoreReturnCode: true });
-        const tafPath = path.join(cwd, '.taf');
-        if (tafSeed) {
-            // Seed with existing .taf from source branch
-            fs.writeFileSync(tafPath, tafSeed, 'utf-8');
-            core.info(`Seeded ${targetBranch} with existing .taf data`);
-        }
-        else {
-            // No seed — create minimal valid YAML so updateTafFile can populate test_history.
-            // Without this, `git add .taf` fails with exit 128 (pathspec did not match)
-            // when consumer repo has no .taf on source branch.
-            const projectName = path.basename(cwd);
-            const minimal = `format_version: 1.0.0\n` +
-                `project: ${projectName}\n` +
-                `created: ${new Date().toISOString()}\n` +
-                `test_history: []\n`;
-            fs.writeFileSync(tafPath, minimal, 'utf-8');
-            core.info(`Created empty .taf for new ${targetBranch} branch (no seed)`);
-        }
-        await exec.exec('git', ['add', '--', '.taf'], execOptions);
-        await exec.exec('git', ['commit', '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`, '--', '.taf'], execOptions);
-        core.info(`Created new branch: ${targetBranch}`);
-    }
+    return r.stdout.trim();
 }
 /**
- * Commit .taf file changes to git and push. On a receipts branch, a push
- * another run beat is tried again on top of its receipts (see receipt-push.ts);
- * `addReceipt` adds this run's receipt to the fresh .taf.
+ * A worktree of the receipts branch in a temporary folder, so the job's own
+ * checkout is never switched, stashed or emptied (it may be a developer's
+ * checkout). The branch exists → the worktree starts at its tip. It doesn't →
+ * an orphan commit holding only `<subfolder>/.taf` (seeded from the source
+ * branch's .taf, or a minimal one) is made with git plumbing and a temporary
+ * index, then checked out there. Returns the worktree's root.
  */
-async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
+async function openReceiptsWorktree(repoRoot, rel, targetBranch, tafSeed) {
+    const base = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-receipts-'));
+    try {
+        return await addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed);
+    }
+    catch (error) {
+        fs.rmSync(base, { recursive: true, force: true });
+        throw error;
+    }
+}
+async function addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed) {
+    const worktree = path.join(base, 'wt');
+    const remoteRef = `refs/remotes/origin/${targetBranch}`;
+    const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', `refs/heads/${targetBranch}`], { cwd: repoRoot, env: (0, git_env_1.botGitEnv)(), ignoreReturnCode: true, silent: true });
+    let start;
+    if (exitCode === 0) {
+        await gitOut(repoRoot, ['fetch', 'origin', `+refs/heads/${targetBranch}:${remoteRef}`]);
+        start = remoteRef;
+        core.info(`Receipts branch ${targetBranch} exists: adding to it`);
+    }
+    else {
+        const tafText = tafSeed ?? minimalTaf(path.basename(path.join(repoRoot, rel)));
+        const blobFile = path.join(base, 'seed.taf');
+        fs.writeFileSync(blobFile, tafText, 'utf-8');
+        const blob = await gitOut(repoRoot, ['hash-object', '-w', '--', blobFile]);
+        const index = { GIT_INDEX_FILE: path.join(base, 'index') };
+        const tafEntry = rel ? `${rel.split(path.sep).join('/')}/.taf` : '.taf';
+        await gitOut(repoRoot, ['update-index', '--add', '--cacheinfo', `100644,${blob},${tafEntry}`], index);
+        const tree = await gitOut(repoRoot, ['write-tree'], index);
+        start = await gitOut(repoRoot, ['commit-tree', tree, '-m', `chore(taf): initialize ${targetBranch} branch [skip ci]`]);
+        core.info(tafSeed ? `Seeded new ${targetBranch} branch with the existing .taf` : `Created new ${targetBranch} branch with an empty .taf`);
+    }
+    await gitOut(repoRoot, ['worktree', 'add', '--detach', worktree, start]);
+    return worktree;
+}
+/** Remove the receipts worktree and its temporary folder. */
+async function closeReceiptsWorktree(repoRoot, worktree) {
+    await exec.getExecOutput('git', ['worktree', 'remove', '--force', worktree], { cwd: repoRoot, ignoreReturnCode: true, silent: true });
+    fs.rmSync(path.dirname(worktree), { recursive: true, force: true });
+    await exec.getExecOutput('git', ['worktree', 'prune'], { cwd: repoRoot, ignoreReturnCode: true, silent: true });
+}
+/**
+ * Commit the receipt and push it. On a receipts branch, a push another run
+ * beat is tried again on top of its receipts (see receipt-push.ts);
+ * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
+ * receipt reached the remote (null: nothing to push to).
+ */
+async function commitTafUpdate(cwd, message, targetBranch, failOnPushError, addReceipt) {
     const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
     // Check if there are changes to commit
     await exec.exec('git', ['add', '--', '.taf'], execOptions);
     const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
     if (stdout.trim() === '') {
-        return;
+        return null;
     }
     if (targetBranch) {
         const git = (args) => exec.exec('git', args, { ...execOptions, ignoreReturnCode: true });
         const { pushed, attempts } = await (0, receipt_push_1.pushReceipt)(git, targetBranch, message, addReceipt);
-        if (pushed) {
-            if (attempts > 1) {
-                core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);
-            }
+        if (pushed && attempts > 1) {
+            core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);
         }
-        else {
-            core.warning(`Could not push the receipt to ${targetBranch} after ${attempts} tries`);
+        if (!pushed) {
+            core.setFailed(`The receipt did not reach ${targetBranch}: the push failed ${attempts} times`);
         }
-        return;
+        return pushed;
     }
     // Name .taf so nothing else that is staged goes into the receipt commit.
     await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
-    try {
-        await exec.exec('git', ['push'], execOptions);
+    const upstream = await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { ...execOptions, ignoreReturnCode: true, silent: true });
+    if (upstream.exitCode !== 0) {
+        core.info('Receipt committed. This branch has no upstream (a pull request checkout, say), so it was not pushed. Use target-branch to keep receipts.');
+        return null;
     }
-    catch (error) {
-        core.warning('Could not push changes (this is ok in some CI environments)');
+    const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
+    if (push.exitCode !== 0) {
+        // On the current branch a refused push (a read-only token, a protected
+        // branch, another run first) is a warning unless fail-on-push-error says
+        // otherwise: it was a warning before 2.6.0, and many workflows rely on it.
+        const text = `The receipt is committed but not pushed, so it is lost when this job ends: ${(0, git_env_1.pushFailureReason)(push.stderr)}. Use target-branch: taf-receipts (a push another run beat is tried again), or give the job contents: write.`;
+        if (failOnPushError) {
+            core.setFailed(text);
+        }
+        else {
+            core.warning(text);
+        }
+        return false;
     }
+    return true;
 }
 async function run() {
     try {
@@ -33306,6 +33356,7 @@ async function run() {
         const autoCommit = core.getInput('auto-commit') !== 'false';
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
         const targetBranch = core.getInput('target-branch') || '';
+        const failOnPushError = core.getInput('fail-on-push-error') === 'true';
         const skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(core.getInput('skipped-names'));
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
@@ -33346,43 +33397,59 @@ async function run() {
         core.setOutput('failed', testResults.failed.toString());
         core.setOutput('total', testResults.total.toString());
         core.setOutput('skipped', (testResults.skipped ?? 0).toString());
-        // If target-branch is set, save .taf seed and switch branches
-        let tafSeed = null;
-        const tafPath = path.join(cwd, '.taf');
+        // With target-branch the receipt goes to that branch, written in a
+        // separate worktree: this checkout is left exactly as it is.
+        let workCwd = cwd;
+        let repoRoot = '';
+        let worktree = '';
         if (targetBranch) {
-            // Save existing .taf from source branch as seed for first-run
-            if (fs.existsSync(tafPath)) {
-                tafSeed = fs.readFileSync(tafPath, 'utf-8');
+            const sourceTaf = path.join(cwd, '.taf');
+            const tafSeed = fs.existsSync(sourceTaf) ? fs.readFileSync(sourceTaf, 'utf-8') : null;
+            repoRoot = await gitOut(cwd, ['rev-parse', '--show-toplevel']);
+            const rel = path.relative(fs.realpathSync(repoRoot), fs.realpathSync(cwd));
+            worktree = await openReceiptsWorktree(repoRoot, rel, targetBranch, tafSeed);
+            workCwd = path.join(worktree, rel);
+        }
+        try {
+            const tafPath = path.join(workCwd, '.taf');
+            // Check if .taf file exists (on current or target branch)
+            if (!fs.existsSync(tafPath)) {
+                core.setFailed(taf_core_1.NO_TAF_FILE);
+                return;
             }
-            core.info(`Switching to target branch: ${targetBranch}`);
-            await switchToTargetBranch(cwd, targetBranch, tafSeed);
+            // Update .taf file
+            const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap });
+            if (!updated) {
+                core.setOutput('taf-updated', 'false');
+                core.setFailed('.taf file was not updated');
+                return;
+            }
+            core.setOutput('taf-updated', 'true');
+            core.info('✅ .taf file updated successfully');
+            // Commit changes if enabled
+            if (autoCommit) {
+                const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, failOnPushError, () => (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap }));
+                core.setOutput('receipt-pushed', String(pushed === true));
+                if (pushed) {
+                    core.info(`✅ Receipt pushed${targetBranch ? ` to ${targetBranch}` : ''}`);
+                }
+            }
+            else {
+                core.setOutput('receipt-pushed', 'false');
+            }
+            // Skipped names: from the receipt actually written (after any push retry).
+            core.setOutput('newly-skipped', (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
+            if (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length) {
+                core.info(`Newly skipped: ${taf_core_1.lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
+            }
+            if (taf_core_1.lastUpdate.skippedNamesNote)
+                core.info(`Skipped names not written: ${taf_core_1.lastUpdate.skippedNamesNote}`);
         }
-        // Check if .taf file exists (on current or target branch)
-        if (!fs.existsSync(tafPath)) {
-            core.setFailed(taf_core_1.NO_TAF_FILE);
-            return;
+        finally {
+            if (worktree) {
+                await closeReceiptsWorktree(repoRoot, worktree);
+            }
         }
-        // Update .taf file
-        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap });
-        if (!updated) {
-            core.setOutput('taf-updated', 'false');
-            core.setFailed('.taf file was not updated');
-            return;
-        }
-        core.setOutput('taf-updated', 'true');
-        core.info('✅ .taf file updated successfully');
-        // Commit changes if enabled
-        if (autoCommit) {
-            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap }));
-            core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
-        }
-        // Skipped names: from the receipt actually written (after any push retry).
-        core.setOutput('newly-skipped', (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
-        if (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length) {
-            core.info(`Newly skipped: ${taf_core_1.lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
-        }
-        if (taf_core_1.lastUpdate.skippedNamesNote)
-            core.info(`Skipped names not written: ${taf_core_1.lastUpdate.skippedNamesNote}`);
     }
     catch (error) {
         if (error instanceof Error) {
@@ -34092,6 +34159,10 @@ function parseWjttcOutput(output) {
  * Only for a dedicated receipts branch (`target-branch`): it holds nothing
  * but .taf, so resetting to the remote throws away only this run's own
  * rejected commit. Pushing to the current branch never resets.
+ *
+ * Runs in the receipts worktree on a detached HEAD, so it pushes HEAD to the
+ * branch and fetches with an explicit refspec (a single-branch checkout's
+ * fetch config doesn't cover the receipts branch).
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.pushReceipt = pushReceipt;
@@ -34099,7 +34170,7 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
     for (let attempt = 1; attempt <= attempts; attempt++) {
         if (attempt > 1) {
             // Another run pushed first: start again from its receipts.
-            if ((await git(['fetch', 'origin', targetBranch])) !== 0) {
+            if ((await git(['fetch', 'origin', `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`])) !== 0) {
                 break;
             }
             if ((await git(['reset', '--hard', `origin/${targetBranch}`])) !== 0) {
@@ -34116,7 +34187,7 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
         if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {
             break;
         }
-        if ((await git(['push', 'origin', targetBranch])) === 0) {
+        if ((await git(['push', 'origin', `HEAD:refs/heads/${targetBranch}`])) === 0) {
             return { pushed: true, attempts: attempt };
         }
     }
@@ -34341,6 +34412,8 @@ exports.NO_TAF_FILE = exports.lastUpdate = void 0;
 exports.updateTafFile = updateTafFile;
 exports.runTrigger = runTrigger;
 const fs = __importStar(__nccwpck_require__(9896));
+const os = __importStar(__nccwpck_require__(857));
+const path = __importStar(__nccwpck_require__(6928));
 const yaml = __importStar(__nccwpck_require__(8815));
 const skipped_names_1 = __nccwpck_require__(5830);
 exports.lastUpdate = {};
@@ -34350,48 +34423,200 @@ exports.lastUpdate = {};
  */
 function updateTafFile(tafPath, testResults, options = {}) {
     try {
-        let taf;
-        // Check if .taf exists, create if not
-        if (fs.existsSync(tafPath)) {
-            const content = fs.readFileSync(tafPath, 'utf-8');
-            taf = parseTAF(content);
-        }
-        else {
-            // Create new .taf file
-            const projectName = (__nccwpck_require__(6928).basename)((__nccwpck_require__(6928).dirname)(tafPath));
-            taf = createTAF(projectName);
-        }
-        // Create test run entry
-        const run = {
-            timestamp: new Date().toISOString(),
-            result: testResults.result,
-            tests: {
-                total: testResults.total,
-                passed: testResults.passed,
-                failed: testResults.failed,
-                skipped: testResults.skipped,
-            },
-            trigger: runTrigger(),
-        };
-        // Skipped names, compared with the receipt before this one. On a push-race
-        // retry this runs again against the receipts that won, so the diff is
-        // always against the true previous receipt.
-        const previous = taf.test_history[taf.test_history.length - 1];
-        const skipped = (0, skipped_names_1.buildSkippedTests)(testResults.skippedNames, testResults.skipped ?? 0, previous, options.skippedNamesCap ?? skipped_names_1.DEFAULT_SKIPPED_NAMES_CAP);
-        if (skipped.block)
-            run.skipped_tests = skipped.block;
-        exports.lastUpdate.skippedTests = skipped.block;
-        exports.lastUpdate.skippedNamesNote = skipped.reason;
-        // Append to history
-        taf.test_history.push(run);
-        // Serialize and write back
-        const updated = serializeTAF(taf);
-        fs.writeFileSync(tafPath, updated, 'utf-8');
-        return true;
+        return withTafLock(tafPath, () => appendReceipt(tafPath, testResults, options));
     }
     catch (error) {
         console.error('Failed to update .taf file:', error);
         return false;
+    }
+}
+/**
+ * Read, add one receipt, write. Runs under the .taf lock.
+ *
+ * The receipts document is edited as YAML, not rebuilt from an object, so its
+ * comments and key order stay. Anything after it (a later `---` document, even
+ * one with a YAML error) is kept byte for byte.
+ */
+function appendReceipt(tafPath, testResults, options) {
+    let doc;
+    let tail = '';
+    if (fs.existsSync(tafPath)) {
+        ({ doc, tail } = readTaf(fs.readFileSync(tafPath, 'utf-8')));
+    }
+    else {
+        doc = new yaml.Document(createTAF(path.basename(path.dirname(tafPath))));
+    }
+    const taf = doc.toJS();
+    // Create test run entry
+    const run = {
+        timestamp: new Date().toISOString(),
+        result: testResults.result,
+        tests: {
+            total: testResults.total,
+            passed: testResults.passed,
+            failed: testResults.failed,
+            skipped: testResults.skipped,
+        },
+        trigger: runTrigger(),
+    };
+    // Skipped names, compared with the receipt before this one. On a push-race
+    // retry this runs again against the receipts that won, so the diff is
+    // always against the true previous receipt.
+    const previous = taf.test_history[taf.test_history.length - 1];
+    const skipped = (0, skipped_names_1.buildSkippedTests)(testResults.skippedNames, testResults.skipped ?? 0, previous, options.skippedNamesCap ?? skipped_names_1.DEFAULT_SKIPPED_NAMES_CAP);
+    if (skipped.block)
+        run.skipped_tests = skipped.block;
+    exports.lastUpdate.skippedTests = skipped.block;
+    exports.lastUpdate.skippedNamesNote = skipped.reason;
+    // Append to history, in block style even when the file had `test_history: []`.
+    const history = doc.get('test_history', true);
+    if (yaml.isSeq(history)) {
+        history.flow = false;
+    }
+    doc.addIn(['test_history'], run);
+    doc.set('last_updated', new Date().toISOString());
+    writeAtomically(tafPath, String(doc) + tail);
+    return true;
+}
+/** How long a writer waits for another one's lock, and when any lock counts as left behind. */
+const LOCK_WAIT_MS = 30000;
+const LOCK_STALE_MS = 60000;
+const sleep = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
+const readFileOrNull = (file) => {
+    try {
+        return fs.readFileSync(file, 'utf-8');
+    }
+    catch {
+        return null;
+    }
+};
+/**
+ * True when the lock's owner can't still be writing: a process on this
+ * machine that has exited, or a lock older than LOCK_STALE_MS (a writer holds
+ * it for milliseconds, so an old lock is left over whoever's PID it names:
+ * another machine's, or one reused since).
+ */
+function lockIsStale(token, lock) {
+    try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) {
+            return true;
+        }
+    }
+    catch {
+        return false; // gone: not stale, just free
+    }
+    const [host, pidText] = token.split(':');
+    const pid = Number(pidText);
+    if (host !== os.hostname() || !Number.isInteger(pid) || pid <= 0) {
+        return false;
+    }
+    try {
+        process.kill(pid, 0);
+        return false; // still running
+    }
+    catch (error) {
+        return error.code === 'ESRCH';
+    }
+}
+/**
+ * Run `fn` holding `<tafPath>.lock`, so two runs that finish together each add
+ * their receipt instead of one overwriting the other.
+ *
+ * The lock holds `host:pid:random`. A stale lock (its owner has exited) is
+ * removed by one waiter at a time: the one holding `<lock>.takeover`, which
+ * re-reads the lock first and removes it only if it is still the stale one.
+ * Nobody else can change the lock meanwhile (writers wait for it; only a
+ * takeover removes it), so a live lock is never removed. The lock is released
+ * only by its owner.
+ */
+function withTafLock(tafPath, fn) {
+    const lock = `${tafPath}.lock`;
+    const token = `${os.hostname()}:${process.pid}:${Math.random().toString(36).slice(2)}`;
+    const deadline = Date.now() + LOCK_WAIT_MS;
+    for (;;) {
+        try {
+            fs.writeFileSync(lock, token, { flag: 'wx' });
+            break;
+        }
+        catch (error) {
+            if (error.code !== 'EEXIST') {
+                throw error;
+            }
+        }
+        const seen = readFileOrNull(lock);
+        if (seen !== null && lockIsStale(seen, lock)) {
+            takeOverStaleLock(lock, seen, token);
+            continue;
+        }
+        if (Date.now() > deadline) {
+            throw new Error(`${lock} is held by another run (waited ${LOCK_WAIT_MS / 1000}s)`);
+        }
+        sleep(20 + Math.floor(Math.random() * 30));
+    }
+    try {
+        return fn();
+    }
+    finally {
+        if (readFileOrNull(lock) === token) {
+            fs.rmSync(lock, { force: true });
+        }
+    }
+}
+/** Remove `lock` if it still holds the stale `seen` token, as the one waiter holding `<lock>.takeover`. */
+function takeOverStaleLock(lock, seen, token) {
+    const takeover = `${lock}.takeover`;
+    try {
+        fs.writeFileSync(takeover, token, { flag: 'wx' });
+    }
+    catch (error) {
+        if (error.code !== 'EEXIST') {
+            throw error;
+        }
+        // Another waiter is taking over; clear its claim only if it died doing so.
+        const claim = readFileOrNull(takeover);
+        if (claim !== null && lockIsStale(claim, takeover)) {
+            try {
+                if (readFileOrNull(takeover) === claim) {
+                    fs.rmSync(takeover, { force: true });
+                }
+            }
+            catch {
+                // gone already
+            }
+        }
+        sleep(10 + Math.floor(Math.random() * 20));
+        return;
+    }
+    try {
+        if (readFileOrNull(lock) === seen) {
+            fs.rmSync(lock, { force: true });
+        }
+    }
+    finally {
+        if (readFileOrNull(takeover) === token) {
+            fs.rmSync(takeover, { force: true });
+        }
+    }
+}
+/**
+ * Write to a temp file beside the real file, then rename it over: a reader
+ * never sees half a file. A symlinked .taf stays a symlink (the target is
+ * replaced), and the file keeps its mode.
+ */
+function writeAtomically(file, text) {
+    const target = fs.existsSync(file) ? fs.realpathSync(file) : file;
+    const mode = fs.existsSync(target) ? fs.statSync(target).mode & 0o777 : undefined;
+    const tmp = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.${Date.now()}.tmp`);
+    fs.writeFileSync(tmp, text, { encoding: 'utf-8', ...(mode !== undefined ? { mode } : {}) });
+    if (mode !== undefined) {
+        fs.chmodSync(tmp, mode);
+    }
+    try {
+        fs.renameSync(tmp, target);
+    }
+    catch (error) {
+        fs.rmSync(tmp, { force: true });
+        throw error;
     }
 }
 /**
@@ -34421,42 +34646,28 @@ function createTAF(projectName) {
     };
 }
 /**
- * Parse .taf file content
+ * The receipts document of a .taf (the first YAML document), and the source
+ * text after it: later `---` documents, kept byte for byte whatever they hold.
  */
-function parseTAF(content) {
-    // Split on document separator and take only first document
-    const lines = content.split('\n');
-    const yamlLines = [];
-    for (const line of lines) {
-        // Stop at document separator (but skip initial one if present)
-        if (line.trim() === '---' && yamlLines.length > 0) {
-            break;
-        }
-        // Skip initial document separator
-        if (line.trim() === '---' && yamlLines.length === 0) {
-            continue;
-        }
-        yamlLines.push(line);
+function readTaf(content) {
+    const tokens = [...new yaml.Parser().parse(content)];
+    const first = tokens.findIndex((t) => t.type === 'document');
+    if (first === -1) {
+        throw new Error('Invalid .taf file: not a valid YAML object');
     }
-    const parsed = yaml.parse(yamlLines.join('\n'));
-    // Basic validation
+    const end = tokens[first + 1]?.offset ?? content.length;
+    const doc = yaml.parseDocument(content.slice(0, end));
+    if (doc.errors.length > 0) {
+        throw new Error(`Invalid .taf file: ${doc.errors[0].message}`);
+    }
+    const parsed = doc.toJS();
     if (!parsed || typeof parsed !== 'object') {
         throw new Error('Invalid .taf file: not a valid YAML object');
     }
     if (!parsed.test_history || !Array.isArray(parsed.test_history)) {
         throw new Error('Invalid .taf file: missing or invalid test_history');
     }
-    return parsed;
-}
-/**
- * Serialize TAF object back to YAML
- * Uses yaml library to maintain existing format
- */
-function serializeTAF(taf) {
-    // Update last_updated timestamp
-    taf.last_updated = new Date().toISOString();
-    // Use yaml.stringify to preserve format
-    return yaml.stringify(taf);
+    return { doc, tail: content.slice(end) };
 }
 
 

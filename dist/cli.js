@@ -41,8 +41,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTafGit = runTafGit;
+exports.optionValue = optionValue;
 exports.cliVersion = cliVersion;
 const child_process_1 = require("child_process");
+const git_env_1 = require("./git-env");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const parsers_1 = require("./parsers");
@@ -171,12 +173,23 @@ function commitTafUpdate(cwd, message, verbose, logger = console.log) {
             return;
         }
         (0, child_process_1.execFileSync)('git', ['commit', '-m', message, '--', '.taf'], opts);
+        // Push only where there is somewhere to push. A branch with no upstream
+        // keeps the receipt in a local commit and says so; a push that fails
+        // (the remote moved on) is an error, never a quiet exit 0.
+        try {
+            (0, child_process_1.execFileSync)('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], opts);
+        }
+        catch {
+            logger('Receipt committed. This branch has no upstream, so it was not pushed.');
+            return;
+        }
         try {
             (0, child_process_1.execFileSync)('git', ['push'], opts);
         }
-        catch {
-            if (verbose)
-                logger('Could not push changes (this is ok in some CI environments)');
+        catch (error) {
+            const stderr = String(error.stderr ?? '');
+            const next = (0, git_env_1.pushWasBehind)(stderr) ? 'Send it with: git pull --rebase && git push' : 'Check your push access and branch protection, then: git push';
+            throw new Error(`The receipt is committed but not pushed: ${(0, git_env_1.pushFailureReason)(stderr)}. ${next}`);
         }
     }
     catch (error) {
@@ -186,6 +199,21 @@ function commitTafUpdate(cwd, message, verbose, logger = console.log) {
     }
 }
 /**
+ * The value of an option, written `--name value` or `--name=value`; undefined
+ * when it isn't there or has no value.
+ */
+function optionValue(args, name) {
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === name) {
+            return args[i + 1];
+        }
+        if (args[i].startsWith(`${name}=`)) {
+            return args[i].slice(name.length + 1);
+        }
+    }
+    return undefined;
+}
+/**
  * Handle the 'badge' subcommand
  */
 function handleBadgeCommand(args) {
@@ -193,24 +221,9 @@ function handleBadgeCommand(args) {
         console.log(`\nfaf-taf-git badge - Generate SVG badge from .taf history\n\nUSAGE:\n  npx faf-taf-git badge [OPTIONS]\n\nOPTIONS:\n  --output <path>     Write SVG to file (default: stdout)\n  --label <text>      Badge label (default: TAF)\n  --taf <path>        Path to .taf file (default: .taf)\n  --help, -h          Show this help\n`);
         process.exit(0);
     }
-    // Parse --output
-    let outputPath;
-    const outputIndex = args.indexOf('--output');
-    if (outputIndex !== -1 && args[outputIndex + 1]) {
-        outputPath = args[outputIndex + 1];
-    }
-    // Parse --label
-    let label;
-    const labelIndex = args.indexOf('--label');
-    if (labelIndex !== -1 && args[labelIndex + 1]) {
-        label = args[labelIndex + 1];
-    }
-    // Parse --taf
-    let tafPath;
-    const tafIndex = args.indexOf('--taf');
-    if (tafIndex !== -1 && args[tafIndex + 1]) {
-        tafPath = args[tafIndex + 1];
-    }
+    const outputPath = optionValue(args, '--output') || undefined;
+    const label = optionValue(args, '--label') || undefined;
+    const tafPath = optionValue(args, '--taf') || undefined;
     const result = (0, badge_1.generateBadge)({ tafPath, label });
     if (!result.success || !result.svg) {
         console.error(`Error: ${result.error || 'Failed to generate badge'}`);
@@ -254,30 +267,26 @@ async function main() {
     const options = {
         verbose: args.includes('--verbose') || args.includes('-v'),
     };
-    // Parse --file
-    const fileIndex = args.indexOf('--file');
-    if (fileIndex !== -1 && args[fileIndex + 1]) {
-        options.file = args[fileIndex + 1];
+    // Options take `--name value` or `--name=value`.
+    const file = optionValue(args, '--file');
+    if (file) {
+        options.file = file;
     }
     // Parse auto-commit flag
     if (args.includes('--commit')) {
         options.autoCommit = true;
     }
-    // Parse commit message
-    const messageIndex = args.indexOf('--message');
-    if (messageIndex !== -1 && args[messageIndex + 1]) {
-        options.commitMessage = args[messageIndex + 1];
+    const message = optionValue(args, '--message');
+    if (message) {
+        options.commitMessage = message;
     }
-    // Parse working directory
-    const cwdIndex = args.indexOf('--cwd');
-    if (cwdIndex !== -1 && args[cwdIndex + 1]) {
-        options.cwd = args[cwdIndex + 1];
+    const cwd = optionValue(args, '--cwd');
+    if (cwd) {
+        options.cwd = cwd;
     }
-    // Parse --skipped-names
-    const skippedIndex = args.indexOf('--skipped-names');
-    if (skippedIndex !== -1) {
+    if (args.some((a) => a === '--skipped-names' || a.startsWith('--skipped-names='))) {
         try {
-            options.skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(args[skippedIndex + 1]);
+            options.skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(optionValue(args, '--skipped-names'));
         }
         catch (error) {
             console.error(error.message);

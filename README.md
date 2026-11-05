@@ -158,14 +158,15 @@ npx faf-taf-git badge --output badge.svg
 | Input | What it does | Default |
 |---|---|---|
 | `test-output-file` | The file with your test output or JUnit XML report | required |
-| `target-branch` | The branch receipts are saved to. Use `taf-receipts`. | the current branch |
+| `target-branch` | The branch receipts are saved to. Use `taf-receipts`. Written in a separate worktree, so your checkout isn't touched. | the current branch |
 | `auto-commit` | Commit and push the receipt | `true` |
 | `commit-message` | The commit message | `chore(taf): update .taf receipt [skip ci]` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
+| `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). With `target-branch`, a push that fails after 5 tries always fails | `false` |
 
-**Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`. For example, `${{ steps.taf.outputs.passed }}`.
+**Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 
-**Command-line options:** `--file`, `--commit`, `--message`, `--cwd`, `--verbose`. Run `npx faf-taf-git --help` for the full list.
+**Command-line options:** `--file`, `--commit`, `--message`, `--cwd`, `--verbose` (`--name value` or `--name=value`). With `--commit`, a push that fails exits 1. Run `npx faf-taf-git --help` for the full list.
 
 ## How hard is it to fake?
 

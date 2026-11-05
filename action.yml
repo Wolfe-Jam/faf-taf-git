@@ -31,6 +31,11 @@ inputs:
     required: false
     default: '25'
 
+  fail-on-push-error:
+    description: 'Fail the step when the receipt cannot be pushed to the current branch (a read-only token, a protected branch, another run pushed first). Off by default: a warning, and receipt-pushed is false. With target-branch a push that fails after 5 tries always fails the step.'
+    required: false
+    default: 'false'
+
 outputs:
   result:
     description: 'Test result (PASSED, FAILED, SKIPPED, IMPROVED, DEGRADED)'
@@ -52,6 +57,9 @@ outputs:
 
   taf-updated:
     description: 'Whether .taf file was updated (true/false)'
+
+  receipt-pushed:
+    description: 'Whether the receipt reached the remote (true/false). false with auto-commit off, with no upstream (a pull request checkout), or when the push failed'
 
 runs:
   using: 'node24'

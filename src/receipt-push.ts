@@ -11,6 +11,10 @@
  * Only for a dedicated receipts branch (`target-branch`): it holds nothing
  * but .taf, so resetting to the remote throws away only this run's own
  * rejected commit. Pushing to the current branch never resets.
+ *
+ * Runs in the receipts worktree on a detached HEAD, so it pushes HEAD to the
+ * branch and fetches with an explicit refspec (a single-branch checkout's
+ * fetch config doesn't cover the receipts branch).
  */
 
 /** Runs git with these args in the repo; resolves to the exit code. */
@@ -31,14 +35,14 @@ export async function pushReceipt(
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (attempt > 1) {
       // Another run pushed first: start again from its receipts.
-      if ((await git(['fetch', 'origin', targetBranch])) !== 0) {break;}
+      if ((await git(['fetch', 'origin', `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`])) !== 0) {break;}
       if ((await git(['reset', '--hard', `origin/${targetBranch}`])) !== 0) {break;}
       if (!addReceipt()) {break;}
     }
     // Name .taf on both: the receipt commit holds the receipt and nothing else.
     if ((await git(['add', '--', '.taf'])) !== 0) {break;}
     if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {break;}
-    if ((await git(['push', 'origin', targetBranch])) === 0) {return { pushed: true, attempts: attempt };}
+    if ((await git(['push', 'origin', `HEAD:refs/heads/${targetBranch}`])) === 0) {return { pushed: true, attempts: attempt };}
   }
   return { pushed: false, attempts };
 }

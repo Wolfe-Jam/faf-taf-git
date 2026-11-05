@@ -12,6 +12,10 @@
  * Only for a dedicated receipts branch (`target-branch`): it holds nothing
  * but .taf, so resetting to the remote throws away only this run's own
  * rejected commit. Pushing to the current branch never resets.
+ *
+ * Runs in the receipts worktree on a detached HEAD, so it pushes HEAD to the
+ * branch and fetches with an explicit refspec (a single-branch checkout's
+ * fetch config doesn't cover the receipts branch).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.pushReceipt = pushReceipt;
@@ -19,7 +23,7 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
     for (let attempt = 1; attempt <= attempts; attempt++) {
         if (attempt > 1) {
             // Another run pushed first: start again from its receipts.
-            if ((await git(['fetch', 'origin', targetBranch])) !== 0) {
+            if ((await git(['fetch', 'origin', `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`])) !== 0) {
                 break;
             }
             if ((await git(['reset', '--hard', `origin/${targetBranch}`])) !== 0) {
@@ -36,7 +40,7 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
         if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {
             break;
         }
-        if ((await git(['push', 'origin', targetBranch])) === 0) {
+        if ((await git(['push', 'origin', `HEAD:refs/heads/${targetBranch}`])) === 0) {
             return { pushed: true, attempts: attempt };
         }
     }

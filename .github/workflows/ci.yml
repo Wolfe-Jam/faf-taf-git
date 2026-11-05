@@ -43,7 +43,10 @@ jobs:
         run: npm run check:no-hardcode
 
       - name: 'A: Run tests (Audit)'
-        run: npm test 2>&1 | tee test-output.txt
+        # pipefail: without it `tee` hides jest's exit code and a failing test stays green
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
 
       # ── R: RECEIPT ────────────────────────────────
       - name: 'R: Generate TAF Receipt'

@@ -11,6 +11,10 @@
  * Only for a dedicated receipts branch (`target-branch`): it holds nothing
  * but .taf, so resetting to the remote throws away only this run's own
  * rejected commit. Pushing to the current branch never resets.
+ *
+ * Runs in the receipts worktree on a detached HEAD, so it pushes HEAD to the
+ * branch and fetches with an explicit refspec (a single-branch checkout's
+ * fetch config doesn't cover the receipts branch).
  */
 /** Runs git with these args in the repo; resolves to the exit code. */
 export type Git = (args: string[]) => Promise<number>;

@@ -13,9 +13,11 @@ import * as os from 'os';
 import * as path from 'path';
 
 // Any exported GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a git hook, a wrapper)
-// would point every git call below at another repository. Drop them for this file.
+// would point every git call below at another repository, and GITHUB_OUTPUT
+// (when these tests run in a GitHub Actions job) would make the Action under
+// test write into that job's own outputs. Drop them for this file.
 for (const k of Object.keys(process.env)) {
-  if (k.startsWith('GIT_')) {delete process.env[k];}
+  if (/^(GIT_|GITHUB_|RUNNER_|INPUT_)/.test(k) || k === 'CI') {delete process.env[k];}
 }
 
 const BUNDLE = path.join(__dirname, '..', 'dist', 'index.js');
