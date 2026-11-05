@@ -135,7 +135,7 @@ From 2.5.0 each receipt names the skipped tests (up to 25), with a hash of the f
 Names come from JUnit XML (`<testcase>` with `<skipped/>`) and from Bun's output. Change how many are written, or turn it off:
 
 ```yaml
-- uses: Wolfe-Jam/faf-taf-git@v2.5.0
+- uses: Wolfe-Jam/faf-taf-git@v2.6.0
   with:
     test-output-file: test-output.txt
     target-branch: taf-receipts

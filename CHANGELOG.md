@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.5.0 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.6.0 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.6.0] - 2026-11-05 — Safe Receipts Edition
+
+Receipts are never lost, and your checkout is never touched.
 
 ### Fixed
 - **No shell for the commit message** ([#39](https://github.com/Wolfe-Jam/faf-taf-git/pull/39)): the CLI ran `git commit -m "<message>"` through a shell, so `--message 'x$(touch INJECTED)y'` ran a command. Every git call now takes an argument list.
