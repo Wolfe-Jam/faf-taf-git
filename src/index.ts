@@ -12,6 +12,7 @@ import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
 import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
 import { parseSkippedNamesCap } from './skipped-names';
+import { botGitEnv } from './git-env';
 import { pushReceipt } from './receipt-push';
 
 /**
@@ -19,11 +20,7 @@ import { pushReceipt } from './receipt-push';
  * Creates the branch as an orphan on first run, seeded with existing .taf.
  */
 async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: string | null): Promise<void> {
-  const execOptions = { cwd };
-
-  // Configure git (needed before any git operations)
-  await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
-  await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+  const execOptions = { cwd, env: botGitEnv() };
 
   // Check if target branch exists on remote
   const { exitCode } = await exec.getExecOutput(
@@ -75,15 +72,11 @@ async function switchToTargetBranch(cwd: string, targetBranch: string, tafSeed: 
  * `addReceipt` adds this run's receipt to the fresh .taf.
  */
 async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, addReceipt: () => boolean): Promise<void> {
-  const execOptions = { cwd };
-
-  // Configure git
-  await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
-  await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+  const execOptions = { cwd, env: botGitEnv() };
 
   // Check if there are changes to commit
   await exec.exec('git', ['add', '.taf'], execOptions);
-  const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+  const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
   if (stdout.trim() === '') {return;}
 
   if (targetBranch) {
@@ -97,7 +90,8 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
     return;
   }
 
-  await exec.exec('git', ['commit', '-m', message], execOptions);
+  // Name .taf so nothing else that is staged goes into the receipt commit.
+  await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
   try {
     await exec.exec('git', ['push'], execOptions);
   } catch (error) {

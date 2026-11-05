@@ -6,7 +6,7 @@
  * Platform-agnostic - works in ANY CI/CD environment or locally
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
@@ -161,18 +161,20 @@ function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger:
   try {
     const opts = { cwd, stdio: 'pipe' as const };
 
-    execSync('git add .taf', opts);
+    // Arguments, never a shell string: the message is the user's text.
+    // Every step names .taf, so nothing else that is staged is committed.
+    execFileSync('git', ['add', '--', '.taf'], opts);
 
-    const diff = execSync('git diff --cached --name-only', opts).toString().trim();
+    const diff = execFileSync('git', ['diff', '--cached', '--name-only', '--', '.taf'], opts).toString().trim();
     if (diff.length === 0) {
       if (verbose) logger('No changes to commit');
       return;
     }
 
-    execSync(`git commit -m "${message}"`, opts);
+    execFileSync('git', ['commit', '-m', message, '--', '.taf'], opts);
 
     try {
-      execSync('git push', opts);
+      execFileSync('git', ['push'], opts);
     } catch {
       if (verbose) logger('Could not push changes (this is ok in some CI environments)');
     }

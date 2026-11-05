@@ -33138,6 +33138,35 @@ module.exports = {
 
 /***/ }),
 
+/***/ 5677:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.botGitEnv = botGitEnv;
+/**
+ * The bot's git identity, given to each git command through the environment.
+ * Never written to git config: `git config --global` on a developer's machine
+ * would replace their own name and email for every repo.
+ */
+function botGitEnv(base = process.env) {
+    const env = {};
+    for (const [k, v] of Object.entries(base)) {
+        if (v !== undefined) {
+            env[k] = v;
+        }
+    }
+    env.GIT_AUTHOR_NAME = 'faf-taf-git[bot]';
+    env.GIT_AUTHOR_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
+    env.GIT_COMMITTER_NAME = 'faf-taf-git[bot]';
+    env.GIT_COMMITTER_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
+    return env;
+}
+
+
+/***/ }),
+
 /***/ 9407:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -33190,16 +33219,14 @@ const path = __importStar(__nccwpck_require__(6928));
 const parsers_1 = __nccwpck_require__(692);
 const taf_core_1 = __nccwpck_require__(390);
 const skipped_names_1 = __nccwpck_require__(5830);
+const git_env_1 = __nccwpck_require__(5677);
 const receipt_push_1 = __nccwpck_require__(5844);
 /**
  * Switch to a dedicated target branch for TAF receipts.
  * Creates the branch as an orphan on first run, seeded with existing .taf.
  */
 async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
-    const execOptions = { cwd };
-    // Configure git (needed before any git operations)
-    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
-    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+    const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
     // Check if target branch exists on remote
     const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', targetBranch], { ...execOptions, ignoreReturnCode: true });
     if (exitCode === 0) {
@@ -33243,13 +33270,10 @@ async function switchToTargetBranch(cwd, targetBranch, tafSeed) {
  * `addReceipt` adds this run's receipt to the fresh .taf.
  */
 async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
-    const execOptions = { cwd };
-    // Configure git
-    await exec.exec('git', ['config', '--global', 'user.name', 'faf-taf-git[bot]'], execOptions);
-    await exec.exec('git', ['config', '--global', 'user.email', 'faf-taf-git[bot]@users.noreply.github.com'], execOptions);
+    const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
     // Check if there are changes to commit
     await exec.exec('git', ['add', '.taf'], execOptions);
-    const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only'], execOptions);
+    const { stdout } = await exec.getExecOutput('git', ['diff', '--cached', '--name-only', '--', '.taf'], execOptions);
     if (stdout.trim() === '') {
         return;
     }
@@ -33266,7 +33290,8 @@ async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
         }
         return;
     }
-    await exec.exec('git', ['commit', '-m', message], execOptions);
+    // Name .taf so nothing else that is staged goes into the receipt commit.
+    await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
     try {
         await exec.exec('git', ['push'], execOptions);
     }

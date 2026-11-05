@@ -159,16 +159,18 @@ async function runTafGit(options = {}) {
 function commitTafUpdate(cwd, message, verbose, logger = console.log) {
     try {
         const opts = { cwd, stdio: 'pipe' };
-        (0, child_process_1.execSync)('git add .taf', opts);
-        const diff = (0, child_process_1.execSync)('git diff --cached --name-only', opts).toString().trim();
+        // Arguments, never a shell string: the message is the user's text.
+        // Every step names .taf, so nothing else that is staged is committed.
+        (0, child_process_1.execFileSync)('git', ['add', '--', '.taf'], opts);
+        const diff = (0, child_process_1.execFileSync)('git', ['diff', '--cached', '--name-only', '--', '.taf'], opts).toString().trim();
         if (diff.length === 0) {
             if (verbose)
                 logger('No changes to commit');
             return;
         }
-        (0, child_process_1.execSync)(`git commit -m "${message}"`, opts);
+        (0, child_process_1.execFileSync)('git', ['commit', '-m', message, '--', '.taf'], opts);
         try {
-            (0, child_process_1.execSync)('git push', opts);
+            (0, child_process_1.execFileSync)('git', ['push'], opts);
         }
         catch {
             if (verbose)
