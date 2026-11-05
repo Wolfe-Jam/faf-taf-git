@@ -175,7 +175,7 @@ The action provides several outputs you can use:
 - `skipped` - Number of skipped tests
 - `newly-skipped` - Skipped in this run but not in the previous receipt (2.5.0)
 - `taf-updated` - Whether .taf was modified
-- `receipt-pushed` - Whether the receipt reached the remote. A push that fails fails the step; with no upstream (a pull request checkout) the receipt is committed, not pushed
+- `receipt-pushed` - Whether the receipt reached the remote: `false` with `auto-commit: false`, with no upstream (a pull request checkout), or when the push failed
 
 ## Workflow Patterns
 
@@ -256,7 +256,7 @@ Tests: 173 passed, 173 total
 
 ### Commits not pushing
 
-A receipt that can't be pushed fails the step, with git's reason in the log.
+A receipt that can't be pushed is a warning with git's reason in the log, and `receipt-pushed` is `false`. Set `fail-on-push-error: true` to fail the step instead. With `target-branch`, a push still rejected after 5 tries always fails the step.
 
 1. Verify `permissions: contents: write` in workflow
 2. Check that `.taf` is not in `.gitignore`

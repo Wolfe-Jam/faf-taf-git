@@ -187,8 +187,9 @@ function commitTafUpdate(cwd, message, verbose, logger = console.log) {
             (0, child_process_1.execFileSync)('git', ['push'], opts);
         }
         catch (error) {
-            const why = (0, git_env_1.pushFailureReason)(String(error.stderr ?? ''));
-            throw new Error(`The receipt is committed but not pushed: ${why}. Send it with: git pull --rebase && git push`);
+            const stderr = String(error.stderr ?? '');
+            const next = (0, git_env_1.pushWasBehind)(stderr) ? 'Send it with: git pull --rebase && git push' : 'Check your push access and branch protection, then: git push';
+            throw new Error(`The receipt is committed but not pushed: ${(0, git_env_1.pushFailureReason)(stderr)}. ${next}`);
         }
     }
     catch (error) {

@@ -21,10 +21,13 @@ function minimalTaf(projectName: string): string {
   return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
 }
 
-/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws on a non-zero exit. */
+/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws with git's stderr on a non-zero exit. */
 async function gitOut(cwd: string, args: string[], extraEnv: { [key: string]: string } = {}): Promise<string> {
-  const { stdout } = await exec.getExecOutput('git', args, { cwd, env: { ...botGitEnv(), ...extraEnv }, silent: true });
-  return stdout.trim();
+  const r = await exec.getExecOutput('git', args, { cwd, env: { ...botGitEnv(), ...extraEnv }, silent: true, ignoreReturnCode: true });
+  if (r.exitCode !== 0) {
+    throw new Error(`git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`);
+  }
+  return r.stdout.trim();
 }
 
 /**
@@ -37,11 +40,20 @@ async function gitOut(cwd: string, args: string[], extraEnv: { [key: string]: st
  */
 async function openReceiptsWorktree(repoRoot: string, rel: string, targetBranch: string, tafSeed: string | null): Promise<string> {
   const base = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-receipts-'));
+  try {
+    return await addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed);
+  } catch (error) {
+    fs.rmSync(base, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function addReceiptsWorktree(base: string, repoRoot: string, rel: string, targetBranch: string, tafSeed: string | null): Promise<string> {
   const worktree = path.join(base, 'wt');
   const remoteRef = `refs/remotes/origin/${targetBranch}`;
 
   const { exitCode } = await exec.getExecOutput(
-    'git', ['ls-remote', '--exit-code', 'origin', targetBranch],
+    'git', ['ls-remote', '--exit-code', 'origin', `refs/heads/${targetBranch}`],
     { cwd: repoRoot, env: botGitEnv(), ignoreReturnCode: true, silent: true }
   );
 
@@ -80,7 +92,7 @@ async function closeReceiptsWorktree(repoRoot: string, worktree: string): Promis
  * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
  * receipt reached the remote (null: nothing to push to).
  */
-async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, addReceipt: () => boolean): Promise<boolean | null> {
+async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, failOnPushError: boolean, addReceipt: () => boolean): Promise<boolean | null> {
   const execOptions = { cwd, env: botGitEnv() };
 
   // Check if there are changes to commit
@@ -105,8 +117,11 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   }
   const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
   if (push.exitCode !== 0) {
-    const why = pushFailureReason(push.stderr);
-    core.setFailed(`The receipt is committed but not pushed: ${why}. With target-branch, a push another run beat is tried again.`);
+    // On the current branch a refused push (a read-only token, a protected
+    // branch, another run first) is a warning unless fail-on-push-error says
+    // otherwise: it was a warning before 2.6.0, and many workflows rely on it.
+    const text = `The receipt is committed but not pushed, so it is lost when this job ends: ${pushFailureReason(push.stderr)}. Use target-branch: taf-receipts (a push another run beat is tried again), or give the job contents: write.`;
+    if (failOnPushError) {core.setFailed(text);} else {core.warning(text);}
     return false;
   }
   return true;
@@ -119,6 +134,7 @@ async function run(): Promise<void> {
     const autoCommit = core.getInput('auto-commit') !== 'false';
     const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
     const targetBranch = core.getInput('target-branch') || '';
+    const failOnPushError = core.getInput('fail-on-push-error') === 'true';
     const skippedNamesCap = parseSkippedNamesCap(core.getInput('skipped-names'));
     const cwd = process.cwd();
 
@@ -204,9 +220,11 @@ async function run(): Promise<void> {
 
       // Commit changes if enabled
       if (autoCommit) {
-        const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
+        const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, failOnPushError, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
         core.setOutput('receipt-pushed', String(pushed === true));
         if (pushed) {core.info(`✅ Receipt pushed${targetBranch ? ` to ${targetBranch}` : ''}`);}
+      } else {
+        core.setOutput('receipt-pushed', 'false');
       }
 
       // Skipped names: from the receipt actually written (after any push retry).

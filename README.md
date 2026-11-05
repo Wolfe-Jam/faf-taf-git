@@ -162,6 +162,7 @@ npx faf-taf-git badge --output badge.svg
 | `auto-commit` | Commit and push the receipt | `true` |
 | `commit-message` | The commit message | `chore(taf): update .taf receipt [skip ci]` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
+| `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). With `target-branch`, a push that fails after 5 tries always fails | `false` |
 
 **Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 

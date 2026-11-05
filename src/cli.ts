@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from 'child_process';
-import { pushFailureReason } from './git-env';
+import { pushFailureReason, pushWasBehind } from './git-env';
 import * as fs from 'fs';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
@@ -188,8 +188,9 @@ function commitTafUpdate(cwd: string, message: string, verbose: boolean, logger:
     try {
       execFileSync('git', ['push'], opts);
     } catch (error) {
-      const why = pushFailureReason(String((error as { stderr?: Buffer }).stderr ?? ''));
-      throw new Error(`The receipt is committed but not pushed: ${why}. Send it with: git pull --rebase && git push`);
+      const stderr = String((error as { stderr?: Buffer }).stderr ?? '');
+      const next = pushWasBehind(stderr) ? 'Send it with: git pull --rebase && git push' : 'Check your push access and branch protection, then: git push';
+      throw new Error(`The receipt is committed but not pushed: ${pushFailureReason(stderr)}. ${next}`);
     }
   } catch (error) {
     if (verbose) logger(`Error committing changes: ${error}`);

@@ -33146,6 +33146,7 @@ module.exports = {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.botGitEnv = botGitEnv;
 exports.pushFailureReason = pushFailureReason;
+exports.pushWasBehind = pushWasBehind;
 /**
  * The bot's git identity, given to each git command through the environment.
  * Never written to git config: `git config --global` on a developer's machine
@@ -33165,13 +33166,20 @@ function botGitEnv(base = process.env) {
     return env;
 }
 /**
- * The line of a failed `git push`'s stderr that says why: the `[rejected]` /
- * `error:` / `fatal:` line, not the hint git prints after it.
+ * Why a `git push` failed, from its stderr: the `[remote rejected]` /
+ * `[rejected]` line (else `error:` / `fatal:`), plus the server's own
+ * `remote:` message when it sent one. Never the hint git prints after them.
  */
 function pushFailureReason(stderr) {
     const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
-    const why = lines.find((l) => /\[rejected\]|^error:|^fatal:/.test(l)) ?? lines[lines.length - 1] ?? 'push failed';
-    return why.replace(/\.+$/, '');
+    const pick = (re) => lines.find((l) => re.test(l));
+    const why = pick(/\[remote rejected\]/) ?? pick(/\[rejected\]/) ?? pick(/^(error|fatal):/) ?? lines[lines.length - 1] ?? 'push failed';
+    const remote = lines.find((l) => /^remote:\s*\S/.test(l) && !/^remote:\s*(Resolving|Counting|Compressing|Total|Enumerating)/.test(l));
+    return [why, remote].filter(Boolean).join(' — ').replace(/\.+$/, '');
+}
+/** True when the push was refused because the remote moved on (pulling first fixes it). */
+function pushWasBehind(stderr) {
+    return /\[rejected\].*\((fetch first|non-fast-forward)\)/.test(stderr);
 }
 
 
@@ -33236,10 +33244,13 @@ const receipt_push_1 = __nccwpck_require__(5844);
 function minimalTaf(projectName) {
     return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
 }
-/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws on a non-zero exit. */
+/** git in `cwd` with the bot identity; resolves to trimmed stdout, throws with git's stderr on a non-zero exit. */
 async function gitOut(cwd, args, extraEnv = {}) {
-    const { stdout } = await exec.getExecOutput('git', args, { cwd, env: { ...(0, git_env_1.botGitEnv)(), ...extraEnv }, silent: true });
-    return stdout.trim();
+    const r = await exec.getExecOutput('git', args, { cwd, env: { ...(0, git_env_1.botGitEnv)(), ...extraEnv }, silent: true, ignoreReturnCode: true });
+    if (r.exitCode !== 0) {
+        throw new Error(`git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`);
+    }
+    return r.stdout.trim();
 }
 /**
  * A worktree of the receipts branch in a temporary folder, so the job's own
@@ -33251,9 +33262,18 @@ async function gitOut(cwd, args, extraEnv = {}) {
  */
 async function openReceiptsWorktree(repoRoot, rel, targetBranch, tafSeed) {
     const base = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-receipts-'));
+    try {
+        return await addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed);
+    }
+    catch (error) {
+        fs.rmSync(base, { recursive: true, force: true });
+        throw error;
+    }
+}
+async function addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed) {
     const worktree = path.join(base, 'wt');
     const remoteRef = `refs/remotes/origin/${targetBranch}`;
-    const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', targetBranch], { cwd: repoRoot, env: (0, git_env_1.botGitEnv)(), ignoreReturnCode: true, silent: true });
+    const { exitCode } = await exec.getExecOutput('git', ['ls-remote', '--exit-code', 'origin', `refs/heads/${targetBranch}`], { cwd: repoRoot, env: (0, git_env_1.botGitEnv)(), ignoreReturnCode: true, silent: true });
     let start;
     if (exitCode === 0) {
         await gitOut(repoRoot, ['fetch', 'origin', `+refs/heads/${targetBranch}:${remoteRef}`]);
@@ -33287,7 +33307,7 @@ async function closeReceiptsWorktree(repoRoot, worktree) {
  * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
  * receipt reached the remote (null: nothing to push to).
  */
-async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
+async function commitTafUpdate(cwd, message, targetBranch, failOnPushError, addReceipt) {
     const execOptions = { cwd, env: (0, git_env_1.botGitEnv)() };
     // Check if there are changes to commit
     await exec.exec('git', ['add', '--', '.taf'], execOptions);
@@ -33315,8 +33335,16 @@ async function commitTafUpdate(cwd, message, targetBranch, addReceipt) {
     }
     const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
     if (push.exitCode !== 0) {
-        const why = (0, git_env_1.pushFailureReason)(push.stderr);
-        core.setFailed(`The receipt is committed but not pushed: ${why}. With target-branch, a push another run beat is tried again.`);
+        // On the current branch a refused push (a read-only token, a protected
+        // branch, another run first) is a warning unless fail-on-push-error says
+        // otherwise: it was a warning before 2.6.0, and many workflows rely on it.
+        const text = `The receipt is committed but not pushed, so it is lost when this job ends: ${(0, git_env_1.pushFailureReason)(push.stderr)}. Use target-branch: taf-receipts (a push another run beat is tried again), or give the job contents: write.`;
+        if (failOnPushError) {
+            core.setFailed(text);
+        }
+        else {
+            core.warning(text);
+        }
         return false;
     }
     return true;
@@ -33328,6 +33356,7 @@ async function run() {
         const autoCommit = core.getInput('auto-commit') !== 'false';
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
         const targetBranch = core.getInput('target-branch') || '';
+        const failOnPushError = core.getInput('fail-on-push-error') === 'true';
         const skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(core.getInput('skipped-names'));
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
@@ -33399,11 +33428,14 @@ async function run() {
             core.info('✅ .taf file updated successfully');
             // Commit changes if enabled
             if (autoCommit) {
-                const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, () => (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap }));
+                const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, failOnPushError, () => (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap }));
                 core.setOutput('receipt-pushed', String(pushed === true));
                 if (pushed) {
                     core.info(`✅ Receipt pushed${targetBranch ? ` to ${targetBranch}` : ''}`);
                 }
+            }
+            else {
+                core.setOutput('receipt-pushed', 'false');
             }
             // Skipped names: from the receipt actually written (after any push retry).
             core.setOutput('newly-skipped', (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
@@ -34380,6 +34412,7 @@ exports.NO_TAF_FILE = exports.lastUpdate = void 0;
 exports.updateTafFile = updateTafFile;
 exports.runTrigger = runTrigger;
 const fs = __importStar(__nccwpck_require__(9896));
+const os = __importStar(__nccwpck_require__(857));
 const path = __importStar(__nccwpck_require__(6928));
 const yaml = __importStar(__nccwpck_require__(8815));
 const skipped_names_1 = __nccwpck_require__(5830);
@@ -34400,19 +34433,20 @@ function updateTafFile(tafPath, testResults, options = {}) {
 /**
  * Read, add one receipt, write. Runs under the .taf lock.
  *
- * The file is edited as a YAML document, not rebuilt from an object: comments,
- * key order and any later `---` documents stay as they were, and only the new
- * receipt and `last_updated` change.
+ * The receipts document is edited as YAML, not rebuilt from an object, so its
+ * comments and key order stay. Anything after it (a later `---` document, even
+ * one with a YAML error) is kept byte for byte.
  */
 function appendReceipt(tafPath, testResults, options) {
-    let docs;
+    let doc;
+    let tail = '';
     if (fs.existsSync(tafPath)) {
-        docs = readTafDocuments(fs.readFileSync(tafPath, 'utf-8'));
+        ({ doc, tail } = readTaf(fs.readFileSync(tafPath, 'utf-8')));
     }
     else {
-        docs = [new yaml.Document(createTAF(path.basename(path.dirname(tafPath))))];
+        doc = new yaml.Document(createTAF(path.basename(path.dirname(tafPath))));
     }
-    const taf = docs[0].toJS();
+    const taf = doc.toJS();
     // Create test run entry
     const run = {
         timestamp: new Date().toISOString(),
@@ -34435,62 +34469,150 @@ function appendReceipt(tafPath, testResults, options) {
     exports.lastUpdate.skippedTests = skipped.block;
     exports.lastUpdate.skippedNamesNote = skipped.reason;
     // Append to history, in block style even when the file had `test_history: []`.
-    const history = docs[0].get('test_history', true);
+    const history = doc.get('test_history', true);
     if (yaml.isSeq(history)) {
         history.flow = false;
     }
-    docs[0].addIn(['test_history'], run);
-    docs[0].set('last_updated', new Date().toISOString());
-    writeAtomically(tafPath, docs.map((d) => String(d)).join(''));
+    doc.addIn(['test_history'], run);
+    doc.set('last_updated', new Date().toISOString());
+    writeAtomically(tafPath, String(doc) + tail);
     return true;
 }
-/** How long a writer waits for another one's lock, and when a lock counts as left behind. */
+/** How long a writer waits for another one's lock, and when any lock counts as left behind. */
 const LOCK_WAIT_MS = 30000;
 const LOCK_STALE_MS = 60000;
+const sleep = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
+const readFileOrNull = (file) => {
+    try {
+        return fs.readFileSync(file, 'utf-8');
+    }
+    catch {
+        return null;
+    }
+};
+/**
+ * True when the lock's owner can't still be writing: a process on this
+ * machine that has exited, or a lock older than LOCK_STALE_MS (a writer holds
+ * it for milliseconds, so an old lock is left over whoever's PID it names:
+ * another machine's, or one reused since).
+ */
+function lockIsStale(token, lock) {
+    try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) {
+            return true;
+        }
+    }
+    catch {
+        return false; // gone: not stale, just free
+    }
+    const [host, pidText] = token.split(':');
+    const pid = Number(pidText);
+    if (host !== os.hostname() || !Number.isInteger(pid) || pid <= 0) {
+        return false;
+    }
+    try {
+        process.kill(pid, 0);
+        return false; // still running
+    }
+    catch (error) {
+        return error.code === 'ESRCH';
+    }
+}
 /**
  * Run `fn` holding `<tafPath>.lock`, so two runs that finish together each add
- * their receipt instead of one overwriting the other. A lock older than
- * LOCK_STALE_MS (a run that was killed) is taken over.
+ * their receipt instead of one overwriting the other.
+ *
+ * The lock holds `host:pid:random`. A stale lock (its owner has exited) is
+ * removed by one waiter at a time: the one holding `<lock>.takeover`, which
+ * re-reads the lock first and removes it only if it is still the stale one.
+ * Nobody else can change the lock meanwhile (writers wait for it; only a
+ * takeover removes it), so a live lock is never removed. The lock is released
+ * only by its owner.
  */
 function withTafLock(tafPath, fn) {
     const lock = `${tafPath}.lock`;
+    const token = `${os.hostname()}:${process.pid}:${Math.random().toString(36).slice(2)}`;
     const deadline = Date.now() + LOCK_WAIT_MS;
     for (;;) {
         try {
-            fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
+            fs.writeFileSync(lock, token, { flag: 'wx' });
             break;
         }
         catch (error) {
             if (error.code !== 'EEXIST') {
                 throw error;
             }
-            try {
-                if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) {
-                    fs.rmSync(lock, { force: true });
-                }
-            }
-            catch {
-                // gone between the two calls: try again
-            }
-            if (Date.now() > deadline) {
-                throw new Error(`${lock} is held by another run (waited ${LOCK_WAIT_MS / 1000}s)`);
-            }
-            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 + Math.floor(Math.random() * 30));
         }
+        const seen = readFileOrNull(lock);
+        if (seen !== null && lockIsStale(seen, lock)) {
+            takeOverStaleLock(lock, seen, token);
+            continue;
+        }
+        if (Date.now() > deadline) {
+            throw new Error(`${lock} is held by another run (waited ${LOCK_WAIT_MS / 1000}s)`);
+        }
+        sleep(20 + Math.floor(Math.random() * 30));
     }
     try {
         return fn();
     }
     finally {
-        fs.rmSync(lock, { force: true });
+        if (readFileOrNull(lock) === token) {
+            fs.rmSync(lock, { force: true });
+        }
     }
 }
-/** Write to a temp file in the same folder, then rename it over: a reader never sees half a file. */
-function writeAtomically(file, text) {
-    const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
-    fs.writeFileSync(tmp, text, 'utf-8');
+/** Remove `lock` if it still holds the stale `seen` token, as the one waiter holding `<lock>.takeover`. */
+function takeOverStaleLock(lock, seen, token) {
+    const takeover = `${lock}.takeover`;
     try {
-        fs.renameSync(tmp, file);
+        fs.writeFileSync(takeover, token, { flag: 'wx' });
+    }
+    catch (error) {
+        if (error.code !== 'EEXIST') {
+            throw error;
+        }
+        // Another waiter is taking over; clear its claim only if it died doing so.
+        const claim = readFileOrNull(takeover);
+        if (claim !== null && lockIsStale(claim, takeover)) {
+            try {
+                if (readFileOrNull(takeover) === claim) {
+                    fs.rmSync(takeover, { force: true });
+                }
+            }
+            catch {
+                // gone already
+            }
+        }
+        sleep(10 + Math.floor(Math.random() * 20));
+        return;
+    }
+    try {
+        if (readFileOrNull(lock) === seen) {
+            fs.rmSync(lock, { force: true });
+        }
+    }
+    finally {
+        if (readFileOrNull(takeover) === token) {
+            fs.rmSync(takeover, { force: true });
+        }
+    }
+}
+/**
+ * Write to a temp file beside the real file, then rename it over: a reader
+ * never sees half a file. A symlinked .taf stays a symlink (the target is
+ * replaced), and the file keeps its mode.
+ */
+function writeAtomically(file, text) {
+    const target = fs.existsSync(file) ? fs.realpathSync(file) : file;
+    const mode = fs.existsSync(target) ? fs.statSync(target).mode & 0o777 : undefined;
+    const tmp = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.${Date.now()}.tmp`);
+    fs.writeFileSync(tmp, text, { encoding: 'utf-8', ...(mode !== undefined ? { mode } : {}) });
+    if (mode !== undefined) {
+        fs.chmodSync(tmp, mode);
+    }
+    try {
+        fs.renameSync(tmp, target);
     }
     catch (error) {
         fs.rmSync(tmp, { force: true });
@@ -34524,25 +34646,28 @@ function createTAF(projectName) {
     };
 }
 /**
- * The YAML documents in a .taf. The receipts are in the first; anything after a
- * `---` is kept as it is.
+ * The receipts document of a .taf (the first YAML document), and the source
+ * text after it: later `---` documents, kept byte for byte whatever they hold.
  */
-function readTafDocuments(content) {
-    const docs = yaml.parseAllDocuments(content);
-    if (!Array.isArray(docs) || docs.length === 0) {
+function readTaf(content) {
+    const tokens = [...new yaml.Parser().parse(content)];
+    const first = tokens.findIndex((t) => t.type === 'document');
+    if (first === -1) {
         throw new Error('Invalid .taf file: not a valid YAML object');
     }
-    if (docs[0].errors.length > 0) {
-        throw new Error(`Invalid .taf file: ${docs[0].errors[0].message}`);
+    const end = tokens[first + 1]?.offset ?? content.length;
+    const doc = yaml.parseDocument(content.slice(0, end));
+    if (doc.errors.length > 0) {
+        throw new Error(`Invalid .taf file: ${doc.errors[0].message}`);
     }
-    const parsed = docs[0].toJS();
+    const parsed = doc.toJS();
     if (!parsed || typeof parsed !== 'object') {
         throw new Error('Invalid .taf file: not a valid YAML object');
     }
     if (!parsed.test_history || !Array.isArray(parsed.test_history)) {
         throw new Error('Invalid .taf file: missing or invalid test_history');
     }
-    return docs;
+    return { doc, tail: content.slice(end) };
 }
 
 
