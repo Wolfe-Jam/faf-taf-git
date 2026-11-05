@@ -1,5 +1,5 @@
 # .taf — Test Receipt Format
-**v1.0 · TAF = Testing AI Format · tagline: "Test Receipts"**
+**v1.1 · TAF = Testing AI Format · tagline: "Test Receipts"**
 
 > **Proof Over Time.** Anyone can get green **once.** TAF proves it **over time** — an append-only Test Receipt on every CI run, git-anchored and tamper-evident. Solid engineering shows in the timeline; everything else gets exposed.
 
@@ -44,6 +44,12 @@ test_history:                  # append-only, oldest → newest
       skipped: 0                      # optional
     trigger: github-actions           # optional — what fired the run
     command: npm test                 # optional — the command run
+    skipped_tests:                    # optional (v1.1) — which tests were skipped
+      names:                          # sorted, at most 25 by default
+        - "a.test.ts > outer > skipped one"
+      hash: sha256:…                  # the full set, sorted, "\n"-joined, UTF-8
+      newly_skipped:                  # only when non-empty and the previous set is known
+        - "a.test.ts > outer > skipped one"
 ```
 
 **Field rules**
@@ -55,9 +61,12 @@ test_history:                  # append-only, oldest → newest
 | `…result` | **required** | enum: `PASSED` \| `FAILED` \| `IMPROVED` \| `DEGRADED` \| `SKIPPED` (added in 2.4.4: tests were found and every one was skipped). Readers should show a value they don't know rather than reject the receipt |
 | `…tests{total,passed,failed}` | **required** | nested; `skipped` optional |
 | `…trigger` / `…command` | optional | provenance of the run |
+| `…skipped_tests` | optional (v1.1) | which tests were skipped, so a steady count can't hide a changed set. `names`: sorted, normalised (no colour codes, paths or timings), capped (25 by default; `truncated: true` past the cap). `hash`: sha256 of every name, sorted and `\n`-joined, so readers compare sets past the cap. `newly_skipped` / `no_longer_skipped`: against the receipt before this one, only when non-empty and that receipt's set is known (a receipt with no block and no skips counts as an empty set). Written only when the output names every skipped test; `names: []` with `no_longer_skipped` marks a return to zero |
 | `format_version` `project` `created` `last_updated` | writer-emitted | the canonical writer always emits these; readers tolerate their absence |
 
 **Optional FAF tenant fields (the CAR use case):** a receipt may carry `faf_associated`, `faf_location`, `faf_score` — so it records not just *did tests pass* but *what the project's AI-readiness was when they did*. Optional; absent ≠ invalid.
+
+**Readers ignore keys they don't know.** A receipt may gain optional fields in a minor version (v1.1 added `skipped_tests`); a reader must not reject an entry, or split it in two, because of an unknown key or a nested list under one.
 
 **Deprecated variants — do NOT emit:** early `.taf` files used `format:`/`version:` headers and *flat* `passed:`/`failed:` per run. Canonical is `format_version`/`project` + *nested* `tests`. Readers MAY accept the old shape; writers MUST emit canonical.
 
@@ -85,6 +94,7 @@ FAF is **one tenant** of the printer, not a precondition.
 
 ## Provenance of this spec
 
+- **v1.1 (2026-11)** — optional `skipped_tests` per receipt (names, hash, newly / no longer skipped), asked for by a developer whose skipped count stayed the same while the tests behind it changed; readers must ignore unknown keys. `format_version` in the file stays `"1.0.0"`: v1.1 only adds an optional field.
 - **v1.0 (2026-06-28)** — single canonical Receipt Format. Pins the `faf-taf-git` emitter schema; leads with Proof Over Time; states the tamper-evidence boundary honestly.
 - Supersedes earlier drafts (2025-10-27) that predated `faf-taf-git` and over-formatted a thin-value artifact.
 - **License:** MIT.

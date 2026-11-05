@@ -1,0 +1,22 @@
+bun test v1.3.13 (bf2e2cec)
+
+::group::a.test.ts:
+(skip) outer > skipped one
+(pass) outer > passes
+(todo) outer > inner > later
+(skip) top skip
+
+::endgroup::
+
+::group::sub/b.test.ts:
+(skip) b skip
+(pass) b ok [0.10ms]
+
+::endgroup::
+
+ 2 pass
+ 3 skip
+ 1 todo
+ 0 fail
+ 1 expect() calls
+Ran 6 tests across 2 files. [0.10ms]

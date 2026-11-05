@@ -33189,6 +33189,7 @@ const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const parsers_1 = __nccwpck_require__(692);
 const taf_core_1 = __nccwpck_require__(390);
+const skipped_names_1 = __nccwpck_require__(5830);
 const receipt_push_1 = __nccwpck_require__(5844);
 /**
  * Switch to a dedicated target branch for TAF receipts.
@@ -33280,6 +33281,7 @@ async function run() {
         const autoCommit = core.getInput('auto-commit') !== 'false';
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
         const targetBranch = core.getInput('target-branch') || '';
+        const skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(core.getInput('skipped-names'));
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
         // Read test output file (written by previous CI step)
@@ -33336,7 +33338,7 @@ async function run() {
             return;
         }
         // Update .taf file
-        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults);
+        const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap });
         if (!updated) {
             core.setOutput('taf-updated', 'false');
             core.setFailed('.taf file was not updated');
@@ -33346,9 +33348,16 @@ async function run() {
         core.info('✅ .taf file updated successfully');
         // Commit changes if enabled
         if (autoCommit) {
-            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => (0, taf_core_1.updateTafFile)(tafPath, testResults));
+            await commitTafUpdate(cwd, commitMessage, targetBranch || undefined, () => (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap }));
             core.info(`✅ Changes committed${targetBranch ? ` to ${targetBranch}` : ''}`);
         }
+        // Skipped names: from the receipt actually written (after any push retry).
+        core.setOutput('newly-skipped', (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length ?? 0).toString());
+        if (taf_core_1.lastUpdate.skippedTests?.newly_skipped?.length) {
+            core.info(`Newly skipped: ${taf_core_1.lastUpdate.skippedTests.newly_skipped.join(' | ')}`);
+        }
+        if (taf_core_1.lastUpdate.skippedNamesNote)
+            core.info(`Skipped names not written: ${taf_core_1.lastUpdate.skippedNamesNote}`);
     }
     catch (error) {
         if (error instanceof Error) {
@@ -33438,8 +33447,34 @@ function parseBunOutput(output) {
         passed,
         failed,
         skipped: skipped > 0 ? skipped : undefined,
+        skippedNames: skipped > 0 ? bunSkippedNames(cleanOutput) : undefined,
         result,
     };
+}
+/**
+ * Names of skipped and todo tests: `(skip) outer > name` and `(todo) name`
+ * lines, each prefixed with its file header (`a.test.ts:` in a terminal,
+ * `::group::a.test.ts:` in GitHub Actions). Undefined when bun printed no
+ * per-test lines (it omits them when it detects an AI agent running it).
+ */
+function bunSkippedNames(cleanOutput) {
+    const names = [];
+    let file = '';
+    let sawTestLine = false;
+    for (const line of cleanOutput.split('\n')) {
+        const header = line.match(/^(?:::group::)?(\S.*?):\s*$/);
+        if (header && !/^\(/.test(line)) {
+            file = header[1];
+            continue;
+        }
+        const test = line.match(/^\((skip|todo|pass|fail)\)\s+(.*)$/);
+        if (!test)
+            continue;
+        sawTestLine = true;
+        if (test[1] === 'skip' || test[1] === 'todo')
+            names.push(file ? `${file} > ${test[2]}` : test[2]);
+    }
+    return sawTestLine ? names : undefined;
 }
 /**
  * Example Bun outputs for testing:
@@ -33637,7 +33672,7 @@ function parseJestOutput(output) {
 /***/ }),
 
 /***/ 1916:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
@@ -33650,6 +33685,7 @@ function parseJestOutput(output) {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseJunitOutput = parseJunitOutput;
+const skipped_names_1 = __nccwpck_require__(5830);
 const SUITE_TAG = /<(\/?)testsuite\b([^>]*?)(\/?)>/g;
 /** Read one numeric attribute; undefined when the attribute is absent. */
 function attr(attrs, name) {
@@ -33681,6 +33717,29 @@ function countsFromTestcases(xml) {
             counts.skipped++;
     }
     return counts;
+}
+/** One string attribute of a tag, entities decoded; undefined when absent. */
+function textAttr(attrs, name) {
+    const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`));
+    return match ? (0, skipped_names_1.decodeXmlEntities)(match[1] ?? match[2] ?? '') : undefined;
+}
+/**
+ * Names of the skipped <testcase>s: "classname > name", or just the name when
+ * the class adds nothing (jest-junit repeats the name as the class).
+ */
+function skippedNamesFromTestcases(xml) {
+    const names = [];
+    const testcase = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+    let match;
+    while ((match = testcase.exec(xml)) !== null) {
+        const body = match[2] ?? '';
+        if (/<(failure|error)\b/.test(body) || !/<skipped\b/.test(body))
+            continue;
+        const name = textAttr(match[1], 'name') ?? '';
+        const cls = textAttr(match[1], 'classname');
+        names.push(cls && cls !== name && !name.includes(cls) ? `${cls} > ${name}` : name);
+    }
+    return names;
 }
 /**
  * Parse a JUnit XML report to extract test results
@@ -33755,6 +33814,7 @@ function parseJunitOutput(output) {
         passed,
         failed: counts.failed,
         skipped: counts.skipped > 0 ? counts.skipped : undefined,
+        skippedNames: counts.skipped > 0 ? skippedNamesFromTestcases(xml) : undefined,
         result: counts.failed > 0 ? 'FAILED' : 'PASSED',
     };
 }
@@ -34040,6 +34100,172 @@ async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5)
 
 /***/ }),
 
+/***/ 5830:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/**
+ * Skipped test names on the receipt
+ *
+ * A count can stay the same while the tests behind it change: yesterday's 3
+ * skipped tests and today's 3 may not be the same 3. So a receipt can carry
+ * the skipped names, a hash of the full set, and what changed since the
+ * previous receipt (RECEIPT-FORMAT.md v1.1, `skipped_tests`).
+ *
+ * The list is capped (25 by default) so a receipt stays small; the hash always
+ * covers the full set, so a reader can tell "same set" from "different set"
+ * even past the cap.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_SKIPPED_NAMES_CAP = void 0;
+exports.parseSkippedNamesCap = parseSkippedNamesCap;
+exports.decodeXmlEntities = decodeXmlEntities;
+exports.normalizeName = normalizeName;
+exports.sortNames = sortNames;
+exports.hashNames = hashNames;
+exports.buildSkippedTests = buildSkippedTests;
+const crypto_1 = __nccwpck_require__(6982);
+/** Default number of names written on a receipt. 0 turns the block off. */
+exports.DEFAULT_SKIPPED_NAMES_CAP = 25;
+/**
+ * The `skipped-names` setting: a whole number of names to write, 0 for off.
+ * Empty means the default. Anything else is an error, so a typo can't turn
+ * the feature off unnoticed.
+ */
+function parseSkippedNamesCap(raw) {
+    const value = (raw ?? '').trim();
+    if (value === '')
+        return exports.DEFAULT_SKIPPED_NAMES_CAP;
+    if (!/^\d+$/.test(value))
+        throw new Error(`skipped-names must be a whole number (0 turns it off), got "${value}"`);
+    return parseInt(value, 10);
+}
+/** Longest name kept, in characters; longer names are cut. */
+const MAX_NAME_LENGTH = 200;
+const XML_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+/** Turn &gt; &#62; &#x3e; back into characters. */
+function decodeXmlEntities(text) {
+    return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, ref) => {
+        if (ref[0] === '#') {
+            const code = ref[1].toLowerCase() === 'x' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+            return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+        }
+        return XML_ENTITIES[ref.toLowerCase()] ?? whole;
+    });
+}
+/**
+ * One name, made stable across runs and machines: no colour codes, NFC,
+ * single spaces, no timing suffix, no absolute path prefix, at most 200
+ * characters.
+ */
+function normalizeName(raw) {
+    let name = raw
+        // eslint-disable-next-line no-control-regex
+        .replace(/\x1b\[[0-9;]*m/g, '')
+        .normalize('NFC')
+        .replace(/\s+/g, ' ')
+        .trim()
+        // timing suffixes: "[0.38ms]", "(12 ms)", "(1.2s)"
+        .replace(/\s*[[(]\d+(?:\.\d+)?\s*m?s[\])]$/, '')
+        // absolute path prefixes (a CI work folder, a home folder, a Windows drive
+        // path) at the start or after a space; relative paths like sub/a.test.ts stay
+        .replace(/(^|[\s(])(?:[A-Za-z]:)?[\\/](?:[^\s\\/:>]+[\\/])+(?=[^\s\\/]+)/g, '$1');
+    if (name.length > MAX_NAME_LENGTH)
+        name = name.slice(0, MAX_NAME_LENGTH);
+    return name;
+}
+/** Sorted by code unit (no locale), duplicates kept: the same set always sorts the same. */
+function sortNames(names) {
+    return [...names].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+/** sha256 of the sorted names joined with "\n", UTF-8. */
+function hashNames(sorted) {
+    return `sha256:${(0, crypto_1.createHash)('sha256').update(sorted.join('\n'), 'utf8').digest('hex')}`;
+}
+/**
+ * The previous receipt's skipped set: a full list, a hash only, or unknown.
+ * - a block that isn't truncated gives its names
+ * - a truncated block gives its hash only
+ * - no block and no skips: the set was empty (works for receipts from before 2.5.0)
+ * - no block but skips: unknown
+ */
+function previousSet(prev) {
+    if (!prev)
+        return undefined;
+    const block = prev.skipped_tests;
+    if (block && typeof block === 'object') {
+        if (!block.truncated && Array.isArray(block.names))
+            return { names: sortNames(block.names.map(String)) };
+        if (typeof block.hash === 'string')
+            return { hash: block.hash };
+        return undefined;
+    }
+    return (prev.tests?.skipped ?? 0) === 0 ? { names: [] } : undefined;
+}
+/** a − b as multisets, sorted. */
+function difference(a, b) {
+    const left = new Map();
+    for (const n of b)
+        left.set(n, (left.get(n) ?? 0) + 1);
+    const out = [];
+    for (const n of a) {
+        const k = left.get(n) ?? 0;
+        if (k > 0)
+            left.set(n, k - 1);
+        else
+            out.push(n);
+    }
+    return out;
+}
+/**
+ * Build the `skipped_tests` block for a new receipt.
+ *
+ * @param rawNames names the parser read, or undefined when the format names none
+ * @param skipped  this run's skipped count
+ * @param prev     the last receipt in test_history (undefined on the first)
+ * @param cap      names to write; 0 turns the block off
+ */
+function buildSkippedTests(rawNames, skipped, prev, cap = exports.DEFAULT_SKIPPED_NAMES_CAP) {
+    if (cap <= 0)
+        return {};
+    const before = previousSet(prev);
+    if (skipped === 0) {
+        // Back to zero: say which ones stopped being skipped, if there were any.
+        if (before?.names && before.names.length > 0) {
+            return { block: { names: [], hash: hashNames([]), no_longer_skipped: before.names } };
+        }
+        if (before?.hash && before.hash !== hashNames([])) {
+            return { block: { names: [], hash: hashNames([]) } };
+        }
+        return {};
+    }
+    if (!rawNames) {
+        return { reason: `${skipped} skipped, but this test output does not name skipped tests` };
+    }
+    if (rawNames.length !== skipped) {
+        return {
+            reason: `${skipped} skipped, but ${rawNames.length} skipped name${rawNames.length === 1 ? '' : 's'} found in the output; names left off`,
+        };
+    }
+    const all = sortNames(rawNames.map(normalizeName));
+    const block = { names: all.slice(0, cap), hash: hashNames(all) };
+    if (all.length > cap)
+        block.truncated = true;
+    if (before?.names) {
+        const newly = difference(all, before.names);
+        const gone = difference(before.names, all);
+        if (newly.length > 0)
+            block.newly_skipped = newly;
+        if (gone.length > 0)
+            block.no_longer_skipped = gone;
+    }
+    return { block };
+}
+
+
+/***/ }),
+
 /***/ 390:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -34085,16 +34311,18 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NO_TAF_FILE = void 0;
+exports.NO_TAF_FILE = exports.lastUpdate = void 0;
 exports.updateTafFile = updateTafFile;
 exports.runTrigger = runTrigger;
 const fs = __importStar(__nccwpck_require__(9896));
 const yaml = __importStar(__nccwpck_require__(8815));
+const skipped_names_1 = __nccwpck_require__(5830);
+exports.lastUpdate = {};
 /**
  * Update .taf file with new test results
  * Creates the file if it doesn't exist
  */
-function updateTafFile(tafPath, testResults) {
+function updateTafFile(tafPath, testResults, options = {}) {
     try {
         let taf;
         // Check if .taf exists, create if not
@@ -34119,6 +34347,15 @@ function updateTafFile(tafPath, testResults) {
             },
             trigger: runTrigger(),
         };
+        // Skipped names, compared with the receipt before this one. On a push-race
+        // retry this runs again against the receipts that won, so the diff is
+        // always against the true previous receipt.
+        const previous = taf.test_history[taf.test_history.length - 1];
+        const skipped = (0, skipped_names_1.buildSkippedTests)(testResults.skippedNames, testResults.skipped ?? 0, previous, options.skippedNamesCap ?? skipped_names_1.DEFAULT_SKIPPED_NAMES_CAP);
+        if (skipped.block)
+            run.skipped_tests = skipped.block;
+        exports.lastUpdate.skippedTests = skipped.block;
+        exports.lastUpdate.skippedNamesNote = skipped.reason;
         // Append to history
         taf.test_history.push(run);
         // Serialize and write back

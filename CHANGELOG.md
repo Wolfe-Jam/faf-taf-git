@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Receipts name the skipped tests, so a skipped count that stays the same can't hide a different set.
+
+### Added
+- `skipped_tests` on each receipt with skips (RECEIPT-FORMAT.md v1.1): the names (sorted, up to 25, `truncated: true` past that), a `sha256` hash of the full set, and `newly_skipped` / `no_longer_skipped` against the previous receipt. A return to zero writes `names: []` with `no_longer_skipped`.
+- Names from JUnit XML (`<testcase>` with `<skipped/>`, as `classname > name`) and Bun (`(skip)` and `(todo)` lines, with their file). Names are cleaned so they compare across runs: colour codes, timings and absolute path prefixes removed, whitespace collapsed, at most 200 characters.
+- The block is written only when the output names every skipped test; otherwise the log says why (Jest and Vitest print names only in verbose mode).
+- Action input `skipped-names` and CLI flag `--skipped-names` (default 25, `0` turns it off; anything but a whole number is an error). Action output `newly-skipped`.
+- On a push-race retry the diff is worked out again against the receipt that won.
+
+### Changed
+- RECEIPT-FORMAT.md v1.1: readers ignore keys they don't know. The file's `format_version` stays `"1.0.0"`.
+- `action.yml` lists `SKIPPED` among the `result` values.
+
 ## [2.4.6] - 2026-11-03
 
 The package no longer carries build-machine paths, and a report with no tests says "no tests ran" instead of "could not parse".

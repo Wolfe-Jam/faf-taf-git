@@ -8,6 +8,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseJunitOutput = parseJunitOutput;
+const skipped_names_1 = require("../skipped-names");
 const SUITE_TAG = /<(\/?)testsuite\b([^>]*?)(\/?)>/g;
 /** Read one numeric attribute; undefined when the attribute is absent. */
 function attr(attrs, name) {
@@ -39,6 +40,29 @@ function countsFromTestcases(xml) {
             counts.skipped++;
     }
     return counts;
+}
+/** One string attribute of a tag, entities decoded; undefined when absent. */
+function textAttr(attrs, name) {
+    const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`));
+    return match ? (0, skipped_names_1.decodeXmlEntities)(match[1] ?? match[2] ?? '') : undefined;
+}
+/**
+ * Names of the skipped <testcase>s: "classname > name", or just the name when
+ * the class adds nothing (jest-junit repeats the name as the class).
+ */
+function skippedNamesFromTestcases(xml) {
+    const names = [];
+    const testcase = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+    let match;
+    while ((match = testcase.exec(xml)) !== null) {
+        const body = match[2] ?? '';
+        if (/<(failure|error)\b/.test(body) || !/<skipped\b/.test(body))
+            continue;
+        const name = textAttr(match[1], 'name') ?? '';
+        const cls = textAttr(match[1], 'classname');
+        names.push(cls && cls !== name && !name.includes(cls) ? `${cls} > ${name}` : name);
+    }
+    return names;
 }
 /**
  * Parse a JUnit XML report to extract test results
@@ -113,6 +137,7 @@ function parseJunitOutput(output) {
         passed,
         failed: counts.failed,
         skipped: counts.skipped > 0 ? counts.skipped : undefined,
+        skippedNames: counts.skipped > 0 ? skippedNamesFromTestcases(xml) : undefined,
         result: counts.failed > 0 ? 'FAILED' : 'PASSED',
     };
 }

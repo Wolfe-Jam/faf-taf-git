@@ -36,7 +36,20 @@ Receipts are saved in a file called `.taf`, on a branch called `taf-receipts`:
   trigger: github-actions
 ```
 
-`result` is `PASSED` or `FAILED`. The full format is in [RECEIPT-FORMAT.md](./RECEIPT-FORMAT.md).
+`result` is `PASSED`, `FAILED` or `SKIPPED` (every test skipped). The full format is in [RECEIPT-FORMAT.md](./RECEIPT-FORMAT.md).
+
+When tests are skipped, the receipt also names them (up to 25), with a hash of the full set and what changed since the previous receipt. A skipped count that stays at 7 can't hide a different 7:
+
+```yaml
+  skipped_tests:
+    names:
+      - "auth.test.ts > login > uses the refresh token"
+    hash: sha256:…
+    newly_skipped:
+      - "auth.test.ts > login > uses the refresh token"
+```
+
+Names come from JUnit XML reports and Bun's output. Other formats keep the count only.
 
 ## Set it up (GitHub Actions)
 
@@ -148,8 +161,9 @@ npx faf-taf-git badge --output badge.svg
 | `target-branch` | The branch receipts are saved to. Use `taf-receipts`. | the current branch |
 | `auto-commit` | Commit and push the receipt | `true` |
 | `commit-message` | The commit message | `chore(taf): update .taf receipt [skip ci]` |
+| `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 
-**Action outputs:** `result`, `passed`, `failed`, `skipped`, `total`, `taf-updated`. For example, `${{ steps.taf.outputs.passed }}`.
+**Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`. For example, `${{ steps.taf.outputs.passed }}`.
 
 **Command-line options:** `--file`, `--commit`, `--message`, `--cwd`, `--verbose`. Run `npx faf-taf-git --help` for the full list.
 
