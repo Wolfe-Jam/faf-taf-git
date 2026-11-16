@@ -33389,6 +33389,7 @@ async function run() {
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
         const targetBranch = core.getInput('target-branch') || '';
         const failOnPushError = core.getInput('fail-on-push-error') === 'true';
+        const failOnFailedTests = core.getInput('fail-on-failed-tests') === 'true';
         const skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(core.getInput('skipped-names'));
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
@@ -33476,6 +33477,11 @@ async function run() {
             }
             if (taf_core_1.lastUpdate.skippedNamesNote)
                 core.info(`Skipped names not written: ${taf_core_1.lastUpdate.skippedNamesNote}`);
+            // Last, with the receipt written and every output set: a red run can
+            // fail this step, so a job that kept its test step going still goes red.
+            if (failOnFailedTests && testResults.failed > 0) {
+                core.setFailed(`${testResults.failed} of ${testResults.total} tests failed (fail-on-failed-tests: true)`);
+            }
         }
         finally {
             if (worktree) {

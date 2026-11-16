@@ -36,6 +36,11 @@ inputs:
     required: false
     default: 'false'
 
+  fail-on-failed-tests:
+    description: 'Fail the step when the run had failing tests (failed > 0), after the receipt is written and pushed and the outputs are set. For a single job whose test step has continue-on-error: true: the red run gets its FAILED receipt and the job still fails. Off by default.'
+    required: false
+    default: 'false'
+
 outputs:
   result:
     description: 'Test result (PASSED, FAILED, SKIPPED, IMPROVED, DEGRADED)'
