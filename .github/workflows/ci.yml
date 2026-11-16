@@ -58,16 +58,38 @@ jobs:
           path: test-output.txt
 
   # ── R: RECEIPT ────────────────────────────────
+  # The same two-job setup as receipt.yml, but running this commit's Action
+  # (uses: ./) so the repo's own CI tests the code it is about to release.
+  # receipt.yml pins a released tag, which this repo's CI must not depend on.
   # Runs when the tests failed too (!cancelled()), so a red run on main is
-  # recorded as FAILED. Calls the reusable workflow this repo ships, at this
-  # commit; target-branch defaults to taf-receipts.
+  # recorded as FAILED.
   receipt:
     name: 'R: TAF Receipt'
     needs: car
     if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    uses: ./.github/workflows/receipt.yml
-    with:
-      artifact-name: test-output
-      test-output-file: test-output.txt
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the test output
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: test-output
+          path: ${{ runner.temp }}/taf-receipt-input
+
+      - name: No test output, no receipt
+        if: steps.download.outcome != 'success'
+        run: echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+
+      - name: Write the receipt (this commit's Action)
+        if: steps.download.outcome == 'success'
+        uses: ./
+        with:
+          test-output-file: ${{ runner.temp }}/taf-receipt-input/test-output.txt
+          auto-commit: 'true'
+          commit-message: 'chore(taf): update receipt [skip ci]'
+          target-branch: taf-receipts

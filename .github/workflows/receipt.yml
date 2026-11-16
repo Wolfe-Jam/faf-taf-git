@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: taf-receipts
+      commit-message:
+        description: 'The commit message for each receipt'
+        required: false
+        type: string
+        default: 'chore(taf): update .taf receipt [skip ci]'
       skipped-names:
         description: 'How many skipped test names each receipt carries. 0 turns it off'
         required: false
@@ -79,7 +84,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # No artifact means the tests never ran (the build failed first): there
+      # is nothing to record, so the job says so and stops without failing.
       - name: Download the test output
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.artifact-name }}
@@ -88,11 +97,17 @@ jobs:
       # Pinned to the release this file ships in: a reusable workflow cannot
       # read its own ref. tests/receipt-workflow.test.ts fails when this pin
       # and package.json's version differ.
+      - name: No test output, no receipt
+        if: steps.download.outcome != 'success'
+        run: echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+
       - name: Write the receipt
         id: taf
+        if: steps.download.outcome == 'success'
         uses: Wolfe-Jam/faf-taf-git@v2.6.0
         with:
           test-output-file: ${{ runner.temp }}/taf-receipt-input/${{ inputs.test-output-file }}
           auto-commit: 'true'
+          commit-message: ${{ inputs.commit-message }}
           target-branch: ${{ inputs.target-branch }}
           skipped-names: ${{ inputs.skipped-names }}

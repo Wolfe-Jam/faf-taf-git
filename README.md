@@ -121,6 +121,9 @@ Give the `receipt` job `permissions: contents: write`: a reusable workflow gets 
 | `target-branch` | The branch receipts are saved to | `taf-receipts` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `runs-on` | The runner for the receipt job | `ubuntu-latest` |
+| `commit-message` | The commit message for each receipt | `chore(taf): update .taf receipt [skip ci]` |
+
+If the tests never ran (the build failed first), there is no test output to download: the receipt job says so in a notice and writes no receipt, without failing.
 
 Its outputs are the action's outputs (see [Settings](#settings)), for example `${{ needs.receipt.outputs.result }}`.
 

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **A reusable workflow, `.github/workflows/receipt.yml`:** call it from a job that `needs` your test job. The test job uploads its output as an artifact; the receipt job downloads it and saves the receipt to `taf-receipts`. With `if: ${{ !cancelled() }}` on the calling job a red run is recorded as `FAILED`, and only that job has `contents: write`. Inputs: `artifact-name`, `test-output-file`, `target-branch`, `skipped-names`, `runs-on`. The action's outputs are passed through. The README now leads with this setup.
+- **A reusable workflow, `.github/workflows/receipt.yml`:** call it from a job that `needs` your test job. The test job uploads its output as an artifact; the receipt job downloads it and saves the receipt to `taf-receipts`. With `if: ${{ !cancelled() }}` on the calling job a red run is recorded as `FAILED`, and only that job has `contents: write`. Inputs: `artifact-name`, `test-output-file`, `target-branch`, `skipped-names`, `runs-on`, `commit-message`. The action's outputs are passed through. When the tests never ran (no artifact), the job writes no receipt and does not fail. The README now leads with this setup.
 - **Action input `fail-on-failed-tests`** (default `false`): fail the step when the run had failing tests, after the receipt is written and pushed and the outputs are set. A single job whose test step has `continue-on-error: true` gets its `FAILED` receipt and still goes red, with no extra failing step.
 
 ### Fixed
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The warning for a receipt that can't be pushed says so plainly:** the receipt was not saved, git's reason, and the fix (`permissions: contents: write` on the job, or `target-branch: taf-receipts` for a protected branch). `fail-on-push-error` still defaults to `false`.
 
 ### Changed
-- This repo's own CI uses the reusable workflow: the test job uploads its output and a separate receipt job, the only one with `contents: write`, records the run, a failed one too. Before, a failed test run wrote no receipt.
+- This repo's own CI uses the same two-job setup: the test job uploads its output and a separate receipt job, the only one with `contents: write`, records the run, a failed one too, with this commit's action (`uses: ./`). Before, a failed test run wrote no receipt.
 - The reusable workflow pins the action to the release it ships in. A test fails when that pin and `package.json`'s version differ.
 
 ## [2.6.0] - 2026-11-05 — Safe Receipts Edition

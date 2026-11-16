@@ -29,18 +29,26 @@ describe('reusable workflow: receipt.yml', () => {
 
   it('is callable, with the documented inputs and defaults', () => {
     const inputs = workflow.on.workflow_call.inputs;
-    expect(Object.keys(inputs).sort()).toEqual(['artifact-name', 'runs-on', 'skipped-names', 'target-branch', 'test-output-file']);
+    expect(Object.keys(inputs).sort()).toEqual(['artifact-name', 'commit-message', 'runs-on', 'skipped-names', 'target-branch', 'test-output-file']);
     expect(inputs['artifact-name'].required).toBe(true);
     expect(inputs['test-output-file'].required).toBe(true);
     expect(inputs['target-branch'].default).toBe('taf-receipts');
     expect(inputs['skipped-names'].default).toBe('25');
     expect(inputs['runs-on'].default).toBe('ubuntu-latest');
+    expect(inputs['commit-message'].default).toBe('chore(taf): update .taf receipt [skip ci]');
   });
 
   it('gives the Action only inputs it has, and passes every Action output through', () => {
     for (const name of Object.keys(tafSteps[0].with ?? {})) {expect(actionInputs).toContain(name);}
     expect(Object.keys(workflow.on.workflow_call.outputs).sort()).toEqual([...actionOutputs].sort());
     expect(Object.keys(workflow.jobs.receipt.outputs).sort()).toEqual([...actionOutputs].sort());
+  });
+
+  it('skips the receipt, without failing, when no test output was uploaded', () => {
+    const download = steps.find((s: any) => s.id === 'download') as any;
+    expect(download.uses).toMatch(/^actions\/download-artifact@/);
+    expect(download['continue-on-error']).toBe(true);
+    expect((tafSteps[0] as any).if).toBe("steps.download.outcome == 'success'");
   });
 
   it('write access is on the receipt job only', () => {
