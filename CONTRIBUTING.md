@@ -264,11 +264,13 @@ Releases follow semantic versioning:
 
 Release checklist:
 1. Update version in package.json
+   - Set the Action pin in `.github/workflows/receipt.yml` to the same version (`uses: Wolfe-Jam/faf-taf-git@v<version>`). `npm test` fails when the two differ (`tests/receipt-workflow.test.ts`).
 2. Update RELEASE-NOTES.md
 3. Run full test suite
 4. Build and verify dist/
 5. Create git tag
 6. Push to GitHub
+   - The CI run of the release commit on `main` starts before the tag exists, so its Receipt job cannot find the Action at the new pin. Push the tag, then re-run that failed job.
 7. Create GitHub release
 8. Announce in discussions
 
