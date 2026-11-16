@@ -7,6 +7,8 @@
  *   - B5: a receipt that isn't pushed is never silent: CLI exit 1; the Action
  *         warns (or fails with fail-on-push-error), and always fails on
  *         target-branch after its retries
+ *   - Case 1: on the current branch the Action tries a push another run beat
+ *         again, on top of what that run pushed (rebase, never a hard reset)
  *   - F4: with target-branch the Action writes in its own worktree: the job's
  *         checkout keeps its branch, its staged work and its files, no stash
  *   - F5: options take `--name=value` too
@@ -78,6 +80,11 @@ function remoteMovesOn(root: string, remote: string, env: NodeJS.ProcessEnv): vo
   git(other, ['add', 'x.txt'], env);
   git(other, ['commit', '-q', '-m', 'someone else'], env);
   git(other, ['push', '-q', 'origin', 'HEAD:main'], env);
+}
+
+/** The remote refuses every push, the way GitHub refuses a read-only token. */
+function refusePushes(remote: string): void {
+  fs.writeFileSync(path.join(remote, 'hooks', 'pre-receive'), '#!/bin/sh\necho "Permission to repo denied" >&2\nexit 1\n', { mode: 0o755 });
 }
 
 /** Run the built Action from `cwd` with these inputs; its outputs go to a file of its own. */
@@ -204,21 +211,23 @@ describe('B5: a receipt that is not pushed is never silent', () => {
     expect(r.stdout).toContain('no upstream, so it was not pushed');
   });
 
-  it('Action on the current branch, push rejected: a warning and receipt-pushed=false (exit 0)', () => {
-    const { root, repo, remote, env, out } = setup();
-    remoteMovesOn(root, remote, env);
+  it('Action on the current branch, push refused by the server: a warning that says how to fix it, receipt-pushed=false (exit 0)', () => {
+    const { repo, remote, env, out } = setup();
+    refusePushes(remote);
     const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/::warning::The receipt is committed but not pushed/);
+    expect(r.stdout).toMatch(/::warning::The receipt was not saved\. .*Permission to repo denied.*permissions: contents: write.*target-branch: taf-receipts/);
     expect(r.output('receipt-pushed')).toBe('false');
+    // Not a lost race: one push, no retry.
+    expect(r.stdout.match(/git push/g)).toHaveLength(1);
   });
 
   it('Action on the current branch with fail-on-push-error: the step fails', () => {
-    const { root, repo, remote, env, out } = setup();
-    remoteMovesOn(root, remote, env);
+    const { repo, remote, env, out } = setup();
+    refusePushes(remote);
     const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out, 'fail-on-push-error': 'true' });
     expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(/::error::The receipt is committed but not pushed/);
+    expect(r.stdout).toMatch(/::error::The receipt was not saved/);
     expect(r.output('receipt-pushed')).toBe('false');
   });
 
@@ -236,6 +245,57 @@ describe('B5: a receipt that is not pushed is never silent', () => {
     const refused = 'remote: Permission to o/r.git denied to github-actions[bot].\nTo https://github.com/o/r\n ! [remote rejected] main -> main (pre-receive hook declined)\nerror: failed to push some refs\n';
     expect(pushFailureReason(refused)).toBe('! [remote rejected] main -> main (pre-receive hook declined) — remote: Permission to o/r.git denied to github-actions[bot]');
     expect(pushWasBehind(refused)).toBe(false);
+  });
+});
+
+describe('Case 1: on the current branch, a push another run beat is tried again', () => {
+  const remoteMain = (repo: string, remote: string, env: NodeJS.ProcessEnv, what: string): string =>
+    git(repo, ['--git-dir', remote, ...what.split(' ')], env);
+
+  it('the remote moved on: the receipt lands on top of it, receipt-pushed=true', () => {
+    const { root, repo, remote, env, out } = setup();
+    remoteMovesOn(root, remote, env);
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
+    expect(r.status).toBe(0);
+    expect(r.output('receipt-pushed')).toBe('true');
+    expect(r.stdout).not.toContain('::warning::');
+    expect(remoteMain(repo, remote, env, 'log --format=%s main').trim().split('\n')).toEqual([
+      'chore(taf): update .taf receipt [skip ci]', 'someone else', 'base',
+    ]);
+    expect(receipts(remoteMain(repo, remote, env, 'show main:pkg/.taf'))).toBe(1);
+    // The receipt commit holds .taf only, and the checkout is level with the remote.
+    expect(remoteMain(repo, remote, env, 'show --format= --name-only main').trim()).toBe('pkg/.taf');
+    expect(git(repo, ['status', '--porcelain', '--branch'], env).trim()).toBe('## main...origin/main');
+  });
+
+  it('another run pushed its receipt first: both receipts are kept', () => {
+    const { root, repo, remote, env, out } = setup();
+    const other = path.join(root, 'other');
+    git(root, ['clone', '-q', '-b', 'main', remote, other], env);
+    expect(runAction(path.join(other, 'pkg'), env, { 'test-output-file': out }).output('receipt-pushed')).toBe('true');
+
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
+    expect(r.status).toBe(0);
+    expect(r.output('receipt-pushed')).toBe('true');
+    expect(receipts(remoteMain(repo, remote, env, 'show main:pkg/.taf'))).toBe(2);
+    expect(remoteMain(repo, remote, env, 'rev-list --count main').trim()).toBe('3');
+  });
+
+  it('staged work blocks the rebase: a warning, the receipt still committed, the staged work kept', () => {
+    const { root, repo, remote, env, out } = setup();
+    remoteMovesOn(root, remote, env);
+    fs.writeFileSync(path.join(repo, 'wip.txt'), 'my work\n');
+    git(repo, ['add', 'wip.txt'], env);
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/::warning::The receipt was not saved/);
+    expect(r.output('receipt-pushed')).toBe('false');
+    expect(git(repo, ['diff', '--cached', '--name-only'], env).trim()).toBe('wip.txt');
+    expect(git(repo, ['show', '--format=%s', '--name-only', 'HEAD'], env).trim().split('\n').filter(Boolean)).toEqual([
+      'chore(taf): update .taf receipt [skip ci]', 'pkg/.taf',
+    ]);
+    expect(receipts(fs.readFileSync(path.join(repo, 'pkg', '.taf'), 'utf-8'))).toBe(1);
+    expect(remoteMain(repo, remote, env, 'log --format=%s main').trim().split('\n')).toEqual(['someone else', 'base']);
   });
 });
 

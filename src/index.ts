@@ -13,7 +13,7 @@ import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
 import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
 import { parseSkippedNamesCap } from './skipped-names';
-import { botGitEnv, pushFailureReason } from './git-env';
+import { botGitEnv, pushFailureReason, pushWasBehind } from './git-env';
 import { pushReceipt } from './receipt-push';
 
 /** The .taf a new receipts branch starts with when the source branch has none. */
@@ -87,9 +87,9 @@ async function closeReceiptsWorktree(repoRoot: string, worktree: string): Promis
 }
 
 /**
- * Commit the receipt and push it. On a receipts branch, a push another run
- * beat is tried again on top of its receipts (see receipt-push.ts);
- * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
+ * Commit the receipt and push it. A push another run beat is tried again on
+ * top of what it pushed, on a receipts branch and on the current branch (see
+ * receipt-push.ts); `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
  * receipt reached the remote (null: nothing to push to).
  */
 async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, failOnPushError: boolean, addReceipt: () => boolean): Promise<boolean | null> {
@@ -108,23 +108,51 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
     return pushed;
   }
 
-  // Name .taf so nothing else that is staged goes into the receipt commit.
-  await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
-  const upstream = await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { ...execOptions, ignoreReturnCode: true, silent: true });
-  if (upstream.exitCode !== 0) {
+  // The current branch. No upstream (a pull request checkout, say): commit only.
+  const quiet = { ...execOptions, ignoreReturnCode: true, silent: true };
+  const branch = (await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', 'HEAD'], quiet)).stdout.trim();
+  const remote = (await exec.getExecOutput('git', ['config', '--get', `branch.${branch}.remote`], quiet)).stdout.trim();
+  const merge = (await exec.getExecOutput('git', ['config', '--get', `branch.${branch}.merge`], quiet)).stdout.trim();
+  if (!remote || !merge.startsWith('refs/heads/')) {
+    // Name .taf so nothing else that is staged goes into the receipt commit.
+    await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
     core.info('Receipt committed. This branch has no upstream (a pull request checkout, say), so it was not pushed. Use target-branch to keep receipts.');
     return null;
   }
-  const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
-  if (push.exitCode !== 0) {
-    // On the current branch a refused push (a read-only token, a protected
-    // branch, another run first) is a warning unless fail-on-push-error says
-    // otherwise: it was a warning before 2.6.0, and many workflows rely on it.
-    const text = `The receipt is committed but not pushed, so it is lost when this job ends: ${pushFailureReason(push.stderr)}. Use target-branch: taf-receipts (a push another run beat is tried again), or give the job contents: write.`;
-    if (failOnPushError) {core.setFailed(text);} else {core.warning(text);}
-    return false;
+  const upstreamBranch = merge.slice('refs/heads/'.length);
+
+  // A push another run beat is tried again on top of the remote, with the
+  // same code as a receipts branch; a push the server refused is not.
+  let pushes = 0;
+  let pushStderr = '';
+  let failed = '';
+  const git = async (args: string[]): Promise<number> => {
+    const r = await exec.getExecOutput('git', args, { ...execOptions, ignoreReturnCode: true });
+    if (args[0] === 'push') {
+      pushes++;
+      pushStderr = r.stderr;
+    } else if (r.exitCode !== 0 && !failed) {
+      failed = `git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`;
+    }
+    return r.exitCode;
+  };
+  const { pushed, attempts } = await pushReceipt(git, upstreamBranch, message, addReceipt, {
+    remote,
+    catchUp: 'rebase',
+    retry: () => pushWasBehind(pushStderr),
+  });
+  if (pushed) {
+    if (attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed first`);}
+    return true;
   }
-  return true;
+  // The commit itself failed (a hook, say): an error, as it always was.
+  if (pushes === 0) {throw new Error(failed || 'git commit failed');}
+  // On the current branch a push that can't succeed (a read-only token, a
+  // protected branch) is a warning unless fail-on-push-error says otherwise:
+  // it was a warning before 2.6.0, and many workflows rely on it.
+  const text = `The receipt was not saved. The push to ${upstreamBranch} failed (${pushFailureReason(pushStderr)}${failed ? `; then ${failed}` : ''}), and the receipt commit is lost when this job ends. To fix it: give the job "permissions: contents: write", or for a protected branch use "target-branch: taf-receipts".`;
+  if (failOnPushError) {core.setFailed(text);} else {core.warning(text);}
+  return false;
 }
 
 async function run(): Promise<void> {

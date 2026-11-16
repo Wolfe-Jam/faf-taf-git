@@ -32,7 +32,7 @@ inputs:
     default: '25'
 
   fail-on-push-error:
-    description: 'Fail the step when the receipt cannot be pushed to the current branch (a read-only token, a protected branch, another run pushed first). Off by default: a warning, and receipt-pushed is false. With target-branch a push that fails after 5 tries always fails the step.'
+    description: 'Fail the step when the receipt cannot be pushed to the current branch (a read-only token, a protected branch). Off by default: a warning, and receipt-pushed is false. A push another run beat is tried again first, up to 5 times. With target-branch a push that fails after 5 tries always fails the step.'
     required: false
     default: 'false'
 
