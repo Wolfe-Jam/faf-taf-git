@@ -53,7 +53,7 @@ Names come from JUnit XML reports and Bun's output. Other formats keep the count
 
 ## Set it up (GitHub Actions)
 
-Add this to a workflow, for example `.github/workflows/tests.yml`. Swap the install and test lines for your own.
+Two jobs: your test job runs the tests and uploads their output; a receipt job reads that output and saves the receipt. [faf-cli](https://github.com/Wolfe-Jam/faf-cli)'s CI uses the same two jobs. Add it to a workflow, for example `.github/workflows/tests.yml`, and swap the install and test lines for your own.
 
 ```yaml
 name: Tests
@@ -62,8 +62,73 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read               # the tests never run with write access
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+      - run: npm ci
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
+
+      - name: Upload the test output
+        if: ${{ !cancelled() }}    # a failed run uploads too
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-output
+          path: test-output.txt
+
+  receipt:
+    needs: test
+    # runs when the tests failed too; only for pushes to main
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write              # lets this job, and only this job, save receipts
+    uses: Wolfe-Jam/faf-taf-git/.github/workflows/receipt.yml@v2.7.0
+    with:
+      artifact-name: test-output
+      test-output-file: test-output.txt
+```
+
+That's it. The first run creates the `taf-receipts` branch for you.
+
+**Five things this setup gets right:**
+
+1. **Failed runs get a receipt too.** A red run is recorded as `FAILED`, not left out. A history with only green runs proves less.
+2. **Only `main` gets receipts.** Pull requests still run the tests, but the record is about `main`. A pull request from a fork gets a read-only token, so it could not save a receipt anyway.
+3. **The test job goes red** when tests fail, with no extra steps: it runs the tests the normal way.
+4. **Tests run once.** The receipt reads the output of the run that just happened.
+5. **Only the receipt job can write.** Your test code runs with a read-only token.
+
+Give the `receipt` job `permissions: contents: write`: a reusable workflow gets no more access than the job that calls it.
+
+**Reusable workflow inputs**
+
+| Input | What it does | Default |
+|---|---|---|
+| `artifact-name` | The artifact your test job uploaded | required |
+| `test-output-file` | The file inside that artifact: the test output or JUnit XML report | required |
+| `target-branch` | The branch receipts are saved to | `taf-receipts` |
+| `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
+| `runs-on` | The runner for the receipt job | `ubuntu-latest` |
+
+Its outputs are the action's outputs (see [Settings](#settings)), for example `${{ needs.receipt.outputs.result }}`.
+
+### One job instead
+
+If you want a single job, use the action as a step. The job needs `contents: write`, so your tests run with write access too.
+
+```yaml
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -71,39 +136,29 @@ jobs:
       contents: write              # lets the action save receipts
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
       - run: npm ci
 
       - name: Run tests
-        id: tests
-        continue-on-error: true    # keep going, so a failed run still gets a receipt
+        # on main: keep going, so a failed run still gets a receipt
+        continue-on-error: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         run: |
           set -o pipefail
           npm test 2>&1 | tee test-output.txt
 
       - name: Print the receipt
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: Wolfe-Jam/faf-taf-git@v2.6.0
+        uses: Wolfe-Jam/faf-taf-git@v2.7.0
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts
-
-      - name: Fail the job if the tests failed
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
+          fail-on-failed-tests: 'true'   # receipt first, then the step fails if tests failed
 ```
 
-That's it. The first run creates the `taf-receipts` branch for you.
-
-**Four things this recipe gets right:**
-
-1. **Failed runs get a receipt too.** A red run is recorded as `FAILED`, not left out. A history with only green runs proves less.
-2. **Only `main` gets receipts.** Pull requests and other branches still run the tests, but the record is about `main`.
-3. **The job still goes red** when tests fail, so your checks stay honest.
-4. **Tests run once.** The receipt reads the output of the run that just happened.
+On `main` the test step keeps going when tests fail, the receipt is saved as `FAILED`, and `fail-on-failed-tests` turns the job red. Everywhere else the test step fails the job itself.
 
 If your tests run on several operating systems, print the receipt from the one that runs the most tests.
 
@@ -162,7 +217,8 @@ npx faf-taf-git badge --output badge.svg
 | `auto-commit` | Commit and push the receipt | `true` |
 | `commit-message` | The commit message | `chore(taf): update .taf receipt [skip ci]` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
-| `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). With `target-branch`, a push that fails after 5 tries always fails | `false` |
+| `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). A push another run beat is tried again first, up to 5 times. With `target-branch`, a push that fails after 5 tries always fails | `false` |
+| `fail-on-failed-tests` | Fail the step when the run had failing tests, after the receipt is saved and the outputs are set | `false` |
 
 **Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 

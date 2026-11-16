@@ -256,11 +256,11 @@ Tests: 173 passed, 173 total
 
 ### Commits not pushing
 
-A receipt that can't be pushed is a warning with git's reason in the log, and `receipt-pushed` is `false`. Set `fail-on-push-error: true` to fail the step instead. With `target-branch`, a push still rejected after 5 tries always fails the step.
+A push another run beat is tried again on top of what that run pushed, up to 5 times, on the current branch and on `target-branch`. A receipt that still can't be pushed to the current branch is a warning that says it was not saved, with git's reason, and `receipt-pushed` is `false`. Set `fail-on-push-error: true` to fail the step instead. With `target-branch`, a push still rejected after 5 tries always fails the step.
 
 1. Verify `permissions: contents: write` in workflow
 2. Check that `.taf` is not in `.gitignore`
-3. On a busy branch, use `target-branch: taf-receipts`: a push another run beat is tried again, up to 5 times
+3. On a protected branch, use `target-branch: taf-receipts`
 
 ### Action shows "up to date" but .taf wasn't updated
 
