@@ -11,8 +11,9 @@ jobs:
   car:
     name: Claim → Audit → Receipt
     runs-on: ubuntu-latest
+    # Read-only: the tests never run with write access. Only the receipt job writes.
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
@@ -48,12 +49,25 @@ jobs:
           set -o pipefail
           npm test 2>&1 | tee test-output.txt
 
-      # ── R: RECEIPT ────────────────────────────────
-      - name: 'R: Generate TAF Receipt'
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-        uses: Wolfe-Jam/faf-taf-git@v2.4.6
+      # The receipt job reads this run's output. Uploaded on a failed run too.
+      - name: Upload test output
+        if: ${{ !cancelled() && hashFiles('test-output.txt') != '' }}
+        uses: actions/upload-artifact@v7
         with:
-          test-output-file: test-output.txt
-          auto-commit: 'true'
-          commit-message: 'chore(taf): update receipt [skip ci]'
-          target-branch: taf-receipts
+          name: test-output
+          path: test-output.txt
+
+  # ── R: RECEIPT ────────────────────────────────
+  # Runs when the tests failed too (!cancelled()), so a red run on main is
+  # recorded as FAILED. Calls the reusable workflow this repo ships, at this
+  # commit; target-branch defaults to taf-receipts.
+  receipt:
+    name: 'R: TAF Receipt'
+    needs: car
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/receipt.yml
+    with:
+      artifact-name: test-output
+      test-output-file: test-output.txt
