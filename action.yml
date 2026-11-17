@@ -32,7 +32,12 @@ inputs:
     default: '25'
 
   fail-on-push-error:
-    description: 'Fail the step when the receipt cannot be pushed to the current branch (a read-only token, a protected branch, another run pushed first). Off by default: a warning, and receipt-pushed is false. With target-branch a push that fails after 5 tries always fails the step.'
+    description: 'Fail the step when the receipt cannot be pushed to the current branch (a read-only token, a protected branch). Off by default: a warning, and receipt-pushed is false. A push another run beat is tried again first, up to 5 times. With target-branch a push that fails after 5 tries always fails the step.'
+    required: false
+    default: 'false'
+
+  fail-on-failed-tests:
+    description: 'Fail the step when the run had failing tests (failed > 0), after the receipt is written and pushed and the outputs are set. For a single job whose test step has continue-on-error: true: the red run gets its FAILED receipt and the job still fails. Off by default.'
     required: false
     default: 'false'
 

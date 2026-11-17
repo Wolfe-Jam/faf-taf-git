@@ -33302,9 +33302,9 @@ async function closeReceiptsWorktree(repoRoot, worktree) {
     await exec.getExecOutput('git', ['worktree', 'prune'], { cwd: repoRoot, ignoreReturnCode: true, silent: true });
 }
 /**
- * Commit the receipt and push it. On a receipts branch, a push another run
- * beat is tried again on top of its receipts (see receipt-push.ts);
- * `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
+ * Commit the receipt and push it. A push another run beat is tried again on
+ * top of what it pushed, on a receipts branch and on the current branch (see
+ * receipt-push.ts); `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
  * receipt reached the remote (null: nothing to push to).
  */
 async function commitTafUpdate(cwd, message, targetBranch, failOnPushError, addReceipt) {
@@ -33326,28 +33326,60 @@ async function commitTafUpdate(cwd, message, targetBranch, failOnPushError, addR
         }
         return pushed;
     }
-    // Name .taf so nothing else that is staged goes into the receipt commit.
-    await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
-    const upstream = await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { ...execOptions, ignoreReturnCode: true, silent: true });
-    if (upstream.exitCode !== 0) {
+    // The current branch. No upstream (a pull request checkout, say): commit only.
+    const quiet = { ...execOptions, ignoreReturnCode: true, silent: true };
+    const branch = (await exec.getExecOutput('git', ['rev-parse', '--abbrev-ref', 'HEAD'], quiet)).stdout.trim();
+    const remote = (await exec.getExecOutput('git', ['config', '--get', `branch.${branch}.remote`], quiet)).stdout.trim();
+    const merge = (await exec.getExecOutput('git', ['config', '--get', `branch.${branch}.merge`], quiet)).stdout.trim();
+    if (!remote || !merge.startsWith('refs/heads/')) {
+        // Name .taf so nothing else that is staged goes into the receipt commit.
+        await exec.exec('git', ['commit', '-m', message, '--', '.taf'], execOptions);
         core.info('Receipt committed. This branch has no upstream (a pull request checkout, say), so it was not pushed. Use target-branch to keep receipts.');
         return null;
     }
-    const push = await exec.getExecOutput('git', ['push'], { ...execOptions, ignoreReturnCode: true });
-    if (push.exitCode !== 0) {
-        // On the current branch a refused push (a read-only token, a protected
-        // branch, another run first) is a warning unless fail-on-push-error says
-        // otherwise: it was a warning before 2.6.0, and many workflows rely on it.
-        const text = `The receipt is committed but not pushed, so it is lost when this job ends: ${(0, git_env_1.pushFailureReason)(push.stderr)}. Use target-branch: taf-receipts (a push another run beat is tried again), or give the job contents: write.`;
-        if (failOnPushError) {
-            core.setFailed(text);
+    const upstreamBranch = merge.slice('refs/heads/'.length);
+    // A push another run beat is tried again on top of the remote, with the
+    // same code as a receipts branch; a push the server refused is not.
+    let pushes = 0;
+    let pushStderr = '';
+    let failed = '';
+    const git = async (args) => {
+        const r = await exec.getExecOutput('git', args, { ...execOptions, ignoreReturnCode: true });
+        if (args[0] === 'push') {
+            pushes++;
+            pushStderr = r.stderr;
         }
-        else {
-            core.warning(text);
+        else if (r.exitCode !== 0 && !failed) {
+            failed = `git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`;
         }
-        return false;
+        return r.exitCode;
+    };
+    const { pushed, attempts } = await (0, receipt_push_1.pushReceipt)(git, upstreamBranch, message, addReceipt, {
+        remote,
+        catchUp: 'rebase',
+        retry: () => (0, git_env_1.pushWasBehind)(pushStderr),
+    });
+    if (pushed) {
+        if (attempts > 1) {
+            core.info(`Pushed on try ${attempts}: another run pushed first`);
+        }
+        return true;
     }
-    return true;
+    // The commit itself failed (a hook, say): an error, as it always was.
+    if (pushes === 0) {
+        throw new Error(failed || 'git commit failed');
+    }
+    // On the current branch a push that can't succeed (a read-only token, a
+    // protected branch) is a warning unless fail-on-push-error says otherwise:
+    // it was a warning before 2.6.0, and many workflows rely on it.
+    const text = `The receipt was not saved. The push to ${upstreamBranch} failed (${(0, git_env_1.pushFailureReason)(pushStderr)}${failed ? `; then ${failed}` : ''}), and the receipt commit is lost when this job ends. To fix it: give the job "permissions: contents: write", or for a protected branch use "target-branch: taf-receipts".`;
+    if (failOnPushError) {
+        core.setFailed(text);
+    }
+    else {
+        core.warning(text);
+    }
+    return false;
 }
 async function run() {
     try {
@@ -33357,6 +33389,7 @@ async function run() {
         const commitMessage = core.getInput('commit-message') || 'chore(taf): update .taf receipt [skip ci]';
         const targetBranch = core.getInput('target-branch') || '';
         const failOnPushError = core.getInput('fail-on-push-error') === 'true';
+        const failOnFailedTests = core.getInput('fail-on-failed-tests') === 'true';
         const skippedNamesCap = (0, skipped_names_1.parseSkippedNamesCap)(core.getInput('skipped-names'));
         const cwd = process.cwd();
         core.info(`Reading test output from: ${testOutputFile}`);
@@ -33444,6 +33477,11 @@ async function run() {
             }
             if (taf_core_1.lastUpdate.skippedNamesNote)
                 core.info(`Skipped names not written: ${taf_core_1.lastUpdate.skippedNamesNote}`);
+            // Last, with the receipt written and every output set: a red run can
+            // fail this step, so a job that kept its test step going still goes red.
+            if (failOnFailedTests && testResults.failed > 0) {
+                core.setFailed(`${testResults.failed} of ${testResults.total} tests failed (fail-on-failed-tests: true)`);
+            }
         }
         finally {
             if (worktree) {
@@ -34147,48 +34185,74 @@ function parseWjttcOutput(output) {
 "use strict";
 
 /**
- * Push a receipt to the receipts branch, and try again when another run got
- * there first.
+ * Push a receipt, and try again when another run got there first.
  *
  * Two runs that finish close together both commit a receipt on top of the
  * same branch tip; the second push is rejected (non-fast-forward). Before
  * 2.4.3 that was a warning and the receipt was lost. Now the run fetches the
- * branch again, resets to it, adds its receipt to the fresh .taf, and pushes,
- * up to `attempts` times.
+ * branch again, catches up with it, adds its receipt to the fresh .taf, and
+ * pushes, up to `attempts` times.
  *
- * Only for a dedicated receipts branch (`target-branch`): it holds nothing
- * but .taf, so resetting to the remote throws away only this run's own
- * rejected commit. Pushing to the current branch never resets.
+ * Catching up, by where the receipt goes:
+ *   - `reset` (a dedicated receipts branch, `target-branch`): the branch
+ *     holds nothing but .taf, so resetting to the remote throws away only
+ *     this run's own rejected commit. Runs in the receipts worktree on a
+ *     detached HEAD.
+ *   - `rebase` (the current branch): never a hard reset, the checkout may
+ *     hold other work. This run's rejected receipt commit (it holds .taf
+ *     only) is taken off, the branch is rebased onto the remote, and the
+ *     receipt is added again. When the rebase can't be done (changed tracked
+ *     files, a conflict) it is aborted, the receipt is committed again where
+ *     it was, and the push is given up.
  *
- * Runs in the receipts worktree on a detached HEAD, so it pushes HEAD to the
- * branch and fetches with an explicit refspec (a single-branch checkout's
- * fetch config doesn't cover the receipts branch).
+ * Both push HEAD to the branch and fetch with an explicit refspec (a
+ * single-branch checkout's fetch config doesn't cover a receipts branch).
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.pushReceipt = pushReceipt;
-async function pushReceipt(git, targetBranch, message, addReceipt, attempts = 5) {
+async function pushReceipt(git, targetBranch, message, addReceipt, options = {}) {
+    const { attempts = 5, remote = 'origin', catchUp = 'reset', retry = () => true } = options;
+    const remoteRef = `refs/remotes/${remote}/${targetBranch}`;
+    // Name .taf on both: the receipt commit holds the receipt and nothing else.
+    const commit = async () => (await git(['add', '--', '.taf'])) === 0 && (await git(['commit', '-m', message, '--', '.taf'])) === 0;
     for (let attempt = 1; attempt <= attempts; attempt++) {
         if (attempt > 1) {
             // Another run pushed first: start again from its receipts.
-            if ((await git(['fetch', 'origin', `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`])) !== 0) {
+            if ((await git(['fetch', remote, `+refs/heads/${targetBranch}:${remoteRef}`])) !== 0) {
                 break;
             }
-            if ((await git(['reset', '--hard', `origin/${targetBranch}`])) !== 0) {
-                break;
+            if (catchUp === 'reset') {
+                if ((await git(['reset', '--hard', remoteRef])) !== 0) {
+                    break;
+                }
+            }
+            else {
+                if ((await git(['reset', '--soft', 'HEAD~1'])) !== 0) {
+                    break;
+                }
+                const tafBack = (await git(['checkout', 'HEAD', '--', '.taf'])) === 0;
+                if (!tafBack || (await git(['rebase', remoteRef])) !== 0) {
+                    // Leave the branch as it was: the receipt committed, not pushed.
+                    if (tafBack) {
+                        await git(['rebase', '--abort']);
+                        addReceipt();
+                    }
+                    await commit();
+                    break;
+                }
             }
             if (!addReceipt()) {
                 break;
             }
         }
-        // Name .taf on both: the receipt commit holds the receipt and nothing else.
-        if ((await git(['add', '--', '.taf'])) !== 0) {
+        if (!(await commit())) {
             break;
         }
-        if ((await git(['commit', '-m', message, '--', '.taf'])) !== 0) {
-            break;
-        }
-        if ((await git(['push', 'origin', `HEAD:refs/heads/${targetBranch}`])) === 0) {
+        if ((await git(['push', remote, `HEAD:refs/heads/${targetBranch}`])) === 0) {
             return { pushed: true, attempts: attempt };
+        }
+        if (!retry()) {
+            return { pushed: false, attempts: attempt };
         }
     }
     return { pushed: false, attempts };

@@ -1,0 +1,113 @@
+name: TAF Receipt
+
+# A reusable workflow: the receipt job for a workflow whose test job uploaded
+# its output as an artifact. Call it from a job with `needs: <test job>` and
+# `if: ${{ !cancelled() }}`, so a red run is recorded as FAILED. The calling
+# job must grant `permissions: contents: write`; the test job needs no write
+# access. See README.md, "Set it up".
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: 'The artifact the test job uploaded'
+        required: true
+        type: string
+      test-output-file:
+        description: 'The file inside the artifact: the test output or a JUnit XML report'
+        required: true
+        type: string
+      target-branch:
+        description: 'The branch receipts are saved to'
+        required: false
+        type: string
+        default: taf-receipts
+      commit-message:
+        description: 'The commit message for each receipt'
+        required: false
+        type: string
+        default: 'chore(taf): update .taf receipt [skip ci]'
+      skipped-names:
+        description: 'How many skipped test names each receipt carries. 0 turns it off'
+        required: false
+        type: string
+        default: '25'
+      runs-on:
+        description: 'The runner for the receipt job'
+        required: false
+        type: string
+        default: ubuntu-latest
+    outputs:
+      result:
+        description: 'Test result (PASSED, FAILED, SKIPPED, IMPROVED, DEGRADED)'
+        value: ${{ jobs.receipt.outputs.result }}
+      passed:
+        description: 'Number of tests passed'
+        value: ${{ jobs.receipt.outputs.passed }}
+      failed:
+        description: 'Number of tests failed'
+        value: ${{ jobs.receipt.outputs.failed }}
+      total:
+        description: 'Total number of tests'
+        value: ${{ jobs.receipt.outputs.total }}
+      skipped:
+        description: 'Number of tests skipped'
+        value: ${{ jobs.receipt.outputs.skipped }}
+      newly-skipped:
+        description: 'Number of tests skipped in this run that were not skipped in the previous receipt'
+        value: ${{ jobs.receipt.outputs.newly-skipped }}
+      taf-updated:
+        description: 'Whether .taf was updated (true/false)'
+        value: ${{ jobs.receipt.outputs.taf-updated }}
+      receipt-pushed:
+        description: 'Whether the receipt reached the remote (true/false)'
+        value: ${{ jobs.receipt.outputs.receipt-pushed }}
+
+jobs:
+  receipt:
+    name: Receipt
+    runs-on: ${{ inputs.runs-on }}
+    # The only job that writes. A reusable workflow gets no more than its
+    # caller grants, so the calling job must grant contents: write too.
+    permissions:
+      contents: write
+    outputs:
+      result: ${{ steps.taf.outputs.result }}
+      passed: ${{ steps.taf.outputs.passed }}
+      failed: ${{ steps.taf.outputs.failed }}
+      total: ${{ steps.taf.outputs.total }}
+      skipped: ${{ steps.taf.outputs.skipped }}
+      newly-skipped: ${{ steps.taf.outputs.newly-skipped }}
+      taf-updated: ${{ steps.taf.outputs.taf-updated }}
+      receipt-pushed: ${{ steps.taf.outputs.receipt-pushed }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No artifact means the tests never ran (the build failed first): there
+      # is nothing to record, so the job says so and stops without failing.
+      - name: Download the test output
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/taf-receipt-input
+
+      # Pinned to the release this file ships in: a reusable workflow cannot
+      # read its own ref. tests/receipt-workflow.test.ts fails when this pin
+      # and package.json's version differ.
+      - name: No test output, no receipt
+        if: steps.download.outcome != 'success'
+        run: echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+
+      - name: Write the receipt
+        id: taf
+        if: steps.download.outcome == 'success'
+        uses: Wolfe-Jam/faf-taf-git@v2.6.0
+        with:
+          test-output-file: ${{ runner.temp }}/taf-receipt-input/${{ inputs.test-output-file }}
+          auto-commit: 'true'
+          commit-message: ${{ inputs.commit-message }}
+          target-branch: ${{ inputs.target-branch }}
+          skipped-names: ${{ inputs.skipped-names }}

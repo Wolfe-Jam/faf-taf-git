@@ -11,8 +11,9 @@ jobs:
   car:
     name: Claim → Audit → Receipt
     runs-on: ubuntu-latest
+    # Read-only: the tests never run with write access. Only the receipt job writes.
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
@@ -48,12 +49,47 @@ jobs:
           set -o pipefail
           npm test 2>&1 | tee test-output.txt
 
-      # ── R: RECEIPT ────────────────────────────────
-      - name: 'R: Generate TAF Receipt'
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-        uses: Wolfe-Jam/faf-taf-git@v2.4.6
+      # The receipt job reads this run's output. Uploaded on a failed run too.
+      - name: Upload test output
+        if: ${{ !cancelled() && hashFiles('test-output.txt') != '' }}
+        uses: actions/upload-artifact@v7
         with:
-          test-output-file: test-output.txt
+          name: test-output
+          path: test-output.txt
+
+  # ── R: RECEIPT ────────────────────────────────
+  # The same two-job setup as receipt.yml, but running this commit's Action
+  # (uses: ./) so the repo's own CI tests the code it is about to release.
+  # receipt.yml pins a released tag, which this repo's CI must not depend on.
+  # Runs when the tests failed too (!cancelled()), so a red run on main is
+  # recorded as FAILED.
+  receipt:
+    name: 'R: TAF Receipt'
+    needs: car
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the test output
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: test-output
+          path: ${{ runner.temp }}/taf-receipt-input
+
+      - name: No test output, no receipt
+        if: steps.download.outcome != 'success'
+        run: echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+
+      - name: Write the receipt (this commit's Action)
+        if: steps.download.outcome == 'success'
+        uses: ./
+        with:
+          test-output-file: ${{ runner.temp }}/taf-receipt-input/test-output.txt
           auto-commit: 'true'
           commit-message: 'chore(taf): update receipt [skip ci]'
           target-branch: taf-receipts
