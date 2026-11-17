@@ -94,7 +94,7 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write              # lets this job, and only this job, save receipts
-    uses: Wolfe-Jam/faf-taf-git/.github/workflows/receipt.yml@v2.7.0
+    uses: Wolfe-Jam/faf-taf-git/.github/workflows/receipt.yml@v2.7.1
     with:
       artifact-name: test-output
       test-output-file: test-output.txt
@@ -157,7 +157,7 @@ jobs:
 
       - name: Print the receipt
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: Wolfe-Jam/faf-taf-git@v2.7.0
+        uses: Wolfe-Jam/faf-taf-git@v2.7.1
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts

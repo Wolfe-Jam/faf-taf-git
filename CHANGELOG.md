@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.7.0 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.7.1 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -8,7 +8,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.7.1] - 2026-11-17
+
+A test job that fails before its tests report now gets a FAILED receipt, with zero counts.
 
 ### Fixed
 - **A red run with no test output is recorded too.** When the test job fails before its tests report (the install or the build fails, a test does not compile under `cargo nextest`, the upload step was skipped), `receipt.yml` now writes a placeholder and records the run as `FAILED` with zero counts, with a warning that names the likely cause. It was a warning and no receipt, a gap in the history. A test job that passed with no artifact still fails the receipt job (a wrong `artifact-name`); one that was cancelled or skipped gets no receipt. This repo's own CI does the same.
