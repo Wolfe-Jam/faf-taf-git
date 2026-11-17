@@ -29,13 +29,15 @@ describe('reusable workflow: receipt.yml', () => {
 
   it('is callable, with the documented inputs and defaults', () => {
     const inputs = workflow.on.workflow_call.inputs;
-    expect(Object.keys(inputs).sort()).toEqual(['artifact-name', 'commit-message', 'runs-on', 'skipped-names', 'target-branch', 'test-output-file']);
+    expect(Object.keys(inputs).sort()).toEqual(['artifact-name', 'commit-message', 'runs-on', 'skipped-names', 'target-branch', 'test-output-file', 'test-result']);
     expect(inputs['artifact-name'].required).toBe(true);
     expect(inputs['test-output-file'].required).toBe(true);
     expect(inputs['target-branch'].default).toBe('taf-receipts');
     expect(inputs['skipped-names'].default).toBe('25');
     expect(inputs['runs-on'].default).toBe('ubuntu-latest');
     expect(inputs['commit-message'].default).toBe('chore(taf): update .taf receipt [skip ci]');
+    expect(inputs['test-result'].required).toBe(false);
+    expect(inputs['test-result'].default).toBe('');
   });
 
   it('gives the Action only inputs it has, and passes every Action output through', () => {
@@ -44,11 +46,20 @@ describe('reusable workflow: receipt.yml', () => {
     expect(Object.keys(workflow.jobs.receipt.outputs).sort()).toEqual([...actionOutputs].sort());
   });
 
-  it('skips the receipt, without failing, when no test output was uploaded', () => {
+  it('passes the test job result to the Action', () => {
+    expect(tafSteps[0].with?.['test-outcome']).toBe('${{ inputs.test-result }}');
+  });
+
+  it('no test output: skips quietly after a failed test job, fails after one that passed', () => {
     const download = steps.find((s: any) => s.id === 'download') as any;
     expect(download.uses).toMatch(/^actions\/download-artifact@/);
     expect(download['continue-on-error']).toBe(true);
     expect((tafSteps[0] as any).if).toBe("steps.download.outcome == 'success'");
+    const none = steps.find((s: any) => s.if === "steps.download.outcome != 'success'") as any;
+    // The input reaches the script through env, never interpolated into it.
+    expect(none.env.TEST_RESULT).toBe('${{ inputs.test-result }}');
+    expect(none.run).not.toContain('${{');
+    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "success" \]; then[\s\S]*exit 1[\s\S]*fi[\s\S]*::notice::/);
   });
 
   it('write access is on the receipt job only', () => {

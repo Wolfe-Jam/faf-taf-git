@@ -88,12 +88,14 @@ async function closeReceiptsWorktree(repoRoot: string, worktree: string): Promis
 
 /**
  * Commit the receipt and push it. A push another run beat is tried again on
- * top of what it pushed, on a receipts branch and on the current branch (see
- * receipt-push.ts); `addReceipt` adds this run's receipt to the fresh .taf. Returns whether the
- * receipt reached the remote (null: nothing to push to).
+ * top of what it pushed, from a temporary worktree (see receipt-push.ts), so
+ * the job's checkout is never moved; `writeReceipt` adds this run's receipt
+ * to the .taf at the path it is given. Returns whether the receipt reached
+ * the remote (null: nothing to push to).
  */
-async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, failOnPushError: boolean, addReceipt: () => boolean): Promise<boolean | null> {
+async function commitTafUpdate(cwd: string, message: string, targetBranch: string | undefined, failOnPushError: boolean, writeReceipt: (tafPath: string) => boolean): Promise<boolean | null> {
   const execOptions = { cwd, env: botGitEnv() };
+  const tafPath = path.join(cwd, '.taf');
 
   // Check if there are changes to commit
   await exec.exec('git', ['add', '--', '.taf'], execOptions);
@@ -101,10 +103,11 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   if (stdout.trim() === '') {return null;}
 
   if (targetBranch) {
+    // cwd is already the receipts worktree.
     const git = (args: string[]) => exec.exec('git', args, { ...execOptions, ignoreReturnCode: true });
-    const { pushed, attempts } = await pushReceipt(git, targetBranch, message, addReceipt);
+    const { pushed, attempts } = await pushReceipt(git, targetBranch, message, () => writeReceipt(tafPath));
     if (pushed && attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed a receipt first`);}
-    if (!pushed) {core.setFailed(`The receipt did not reach ${targetBranch}: the push failed ${attempts} times`);}
+    if (!pushed) {core.setFailed(`The receipt did not reach ${targetBranch} after ${attempts} ${attempts === 1 ? 'push' : 'pushes'}`);}
     return pushed;
   }
 
@@ -121,36 +124,66 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   }
   const upstreamBranch = merge.slice('refs/heads/'.length);
 
-  // A push another run beat is tried again on top of the remote, with the
-  // same code as a receipts branch; a push the server refused is not.
-  let pushes = 0;
+  // git in a folder; remembers the last push's stderr and the first other failure.
   let pushStderr = '';
   let failed = '';
-  const git = async (args: string[]): Promise<number> => {
-    const r = await exec.getExecOutput('git', args, { ...execOptions, ignoreReturnCode: true });
+  const gitIn = (dir: string) => async (args: string[]): Promise<number> => {
+    const r = await exec.getExecOutput('git', args, { cwd: dir, env: botGitEnv(), ignoreReturnCode: true });
     if (args[0] === 'push') {
-      pushes++;
       pushStderr = r.stderr;
     } else if (r.exitCode !== 0 && !failed) {
       failed = `git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`;
     }
     return r.exitCode;
   };
-  const { pushed, attempts } = await pushReceipt(git, upstreamBranch, message, addReceipt, {
-    remote,
-    catchUp: 'rebase',
-    retry: () => pushWasBehind(pushStderr),
-  });
-  if (pushed) {
-    if (attempts > 1) {core.info(`Pushed on try ${attempts}: another run pushed first`);}
-    return true;
-  }
+
+  // First try: from this checkout. Name .taf so nothing else that is staged goes in.
+  const here = gitIn(cwd);
   // The commit itself failed (a hook, say): an error, as it always was.
-  if (pushes === 0) {throw new Error(failed || 'git commit failed');}
-  // On the current branch a push that can't succeed (a read-only token, a
-  // protected branch) is a warning unless fail-on-push-error says otherwise:
-  // it was a warning before 2.6.0, and many workflows rely on it.
-  const text = `The receipt was not saved. The push to ${upstreamBranch} failed (${pushFailureReason(pushStderr)}${failed ? `; then ${failed}` : ''}), and the receipt commit is lost when this job ends. To fix it: give the job "permissions: contents: write", or for a protected branch use "target-branch: taf-receipts".`;
+  if ((await here(['commit', '-m', message, '--', '.taf'])) !== 0) {throw new Error(failed || 'git commit failed');}
+  if ((await here(['push', remote, `HEAD:refs/heads/${upstreamBranch}`])) === 0) {return true;}
+
+  // Another run pushed first: try again on top of it, from a temporary
+  // worktree at the remote tip. This checkout stays on the commit that was
+  // tested; it keeps its own receipt commit, unpushed. A push the server
+  // refused (a read-only token, a protected branch) is not tried again.
+  let pushes = 1;
+  const behind = pushWasBehind(pushStderr);
+  if (behind) {
+    const repoRoot = await gitOut(cwd, ['rev-parse', '--show-toplevel']);
+    const rel = path.relative(fs.realpathSync(repoRoot), fs.realpathSync(cwd));
+    const remoteRef = `refs/remotes/${remote}/${upstreamBranch}`;
+    const worktree = path.join(fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-retry-')), 'wt');
+    try {
+      if ((await here(['fetch', remote, `+refs/heads/${upstreamBranch}:${remoteRef}`])) === 0
+        && (await here(['worktree', 'add', '--detach', worktree, remoteRef])) === 0) {
+        const retryTaf = path.join(worktree, rel, '.taf');
+        if (writeReceipt(retryTaf)) {
+          const r = await pushReceipt(gitIn(path.join(worktree, rel)), upstreamBranch, message, () => writeReceipt(retryTaf), {
+            remote,
+            attempts: 4,
+            retry: () => pushWasBehind(pushStderr),
+          });
+          pushes += r.attempts;
+          if (r.pushed) {
+            core.info(`Pushed on try ${pushes}: another run pushed first. This checkout was not moved.`);
+            return true;
+          }
+        }
+      }
+    } finally {
+      await closeReceiptsWorktree(repoRoot, worktree);
+    }
+  }
+
+  // On the current branch a push that can't succeed is a warning unless
+  // fail-on-push-error says otherwise: it was a warning before 2.6.0, and many
+  // workflows rely on it.
+  const why = `${pushFailureReason(pushStderr)}${failed ? `; then ${failed}` : ''}`;
+  const fix = behind && !failed
+    ? `Other runs kept pushing to ${upstreamBranch} first (${pushes} ${pushes === 1 ? 'push' : 'pushes'}). To fix it: use "target-branch: taf-receipts", so receipts do not race other pushes.`
+    : 'To fix it: give the job "permissions: contents: write", or for a protected branch use "target-branch: taf-receipts".';
+  const text = `The receipt was not saved. The push to ${upstreamBranch} failed (${why}), and the receipt commit is lost when this job ends. ${fix}`;
   if (failOnPushError) {core.setFailed(text);} else {core.warning(text);}
   return false;
 }
@@ -164,6 +197,7 @@ async function run(): Promise<void> {
     const targetBranch = core.getInput('target-branch') || '';
     const failOnPushError = core.getInput('fail-on-push-error') === 'true';
     const failOnFailedTests = core.getInput('fail-on-failed-tests') === 'true';
+    const testOutcome = core.getInput('test-outcome').trim().toLowerCase();
     const skippedNamesCap = parseSkippedNamesCap(core.getInput('skipped-names'));
     const cwd = process.cwd();
 
@@ -205,6 +239,14 @@ async function run(): Promise<void> {
     }
 
     core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
+
+    // The test step failed, but the output counts no failed test (a test file
+    // that did not compile, a coverage threshold, a linter in `npm test`):
+    // the run was red, so the receipt says FAILED.
+    if (testOutcome === 'failure' && testResults.result !== 'FAILED') {
+      core.info(`test-outcome is failure: recorded as FAILED (the output alone read ${testResults.result})`);
+      testResults.result = 'FAILED';
+    }
 
     // Set GitHub Action outputs
     core.setOutput('result', testResults.result);
@@ -249,7 +291,7 @@ async function run(): Promise<void> {
 
       // Commit changes if enabled
       if (autoCommit) {
-        const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, failOnPushError, () => updateTafFile(tafPath, testResults, { skippedNamesCap }));
+        const pushed = await commitTafUpdate(workCwd, commitMessage, targetBranch || undefined, failOnPushError, (p) => updateTafFile(p, testResults, { skippedNamesCap }));
         core.setOutput('receipt-pushed', String(pushed === true));
         if (pushed) {core.info(`✅ Receipt pushed${targetBranch ? ` to ${targetBranch}` : ''}`);}
       } else {
@@ -265,8 +307,10 @@ async function run(): Promise<void> {
 
       // Last, with the receipt written and every output set: a red run can
       // fail this step, so a job that kept its test step going still goes red.
-      if (failOnFailedTests && testResults.failed > 0) {
-        core.setFailed(`${testResults.failed} of ${testResults.total} tests failed (fail-on-failed-tests: true)`);
+      if (failOnFailedTests && (testResults.failed > 0 || testResults.result === 'FAILED')) {
+        core.setFailed(testResults.failed > 0
+          ? `${testResults.failed} of ${testResults.total} tests failed (fail-on-failed-tests: true)`
+          : 'The test step failed (test-outcome: failure), although the output counts no failed test (fail-on-failed-tests: true)');
       }
     } finally {
       if (worktree) {await closeReceiptsWorktree(repoRoot, worktree);}

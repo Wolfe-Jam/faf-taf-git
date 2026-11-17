@@ -8,7 +8,8 @@
  *         warns (or fails with fail-on-push-error), and always fails on
  *         target-branch after its retries
  *   - Case 1: on the current branch the Action tries a push another run beat
- *         again, on top of what that run pushed (rebase, never a hard reset)
+ *         again, on top of what that run pushed, from a temporary worktree
+ *         (the job's checkout is never moved)
  *   - F4: with target-branch the Action writes in its own worktree: the job's
  *         checkout keeps its branch, its staged work and its files, no stash
  *   - F5: options take `--name=value` too
@@ -252,20 +253,27 @@ describe('Case 1: on the current branch, a push another run beat is tried again'
   const remoteMain = (repo: string, remote: string, env: NodeJS.ProcessEnv, what: string): string =>
     git(repo, ['--git-dir', remote, ...what.split(' ')], env);
 
-  it('the remote moved on: the receipt lands on top of it, receipt-pushed=true', () => {
+  it('the remote moved on: the receipt lands on top of it, receipt-pushed=true, the checkout not moved', () => {
     const { root, repo, remote, env, out } = setup();
+    const tested = git(repo, ['rev-parse', 'HEAD'], env).trim();
     remoteMovesOn(root, remote, env);
     const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
     expect(r.status).toBe(0);
     expect(r.output('receipt-pushed')).toBe('true');
     expect(r.stdout).not.toContain('::warning::');
+    expect(r.stdout).toContain('Pushed on try 2');
     expect(remoteMain(repo, remote, env, 'log --format=%s main').trim().split('\n')).toEqual([
       'chore(taf): update .taf receipt [skip ci]', 'someone else', 'base',
     ]);
     expect(receipts(remoteMain(repo, remote, env, 'show main:pkg/.taf'))).toBe(1);
-    // The receipt commit holds .taf only, and the checkout is level with the remote.
+    // The receipt commit holds .taf only.
     expect(remoteMain(repo, remote, env, 'show --format= --name-only main').trim()).toBe('pkg/.taf');
-    expect(git(repo, ['status', '--porcelain', '--branch'], env).trim()).toBe('## main...origin/main');
+    // The checkout stays on the tested commit (plus its own receipt commit):
+    // the other run's untested file never reaches it, and no worktree is left.
+    expect(git(repo, ['rev-parse', 'HEAD~1'], env).trim()).toBe(tested);
+    expect(fs.existsSync(path.join(repo, 'x.txt'))).toBe(false);
+    expect(git(repo, ['status', '--porcelain'], env).trim()).toBe('');
+    expect(git(repo, ['worktree', 'list'], env).trim().split('\n')).toHaveLength(1);
   });
 
   it('another run pushed its receipt first: both receipts are kept', () => {
@@ -281,21 +289,28 @@ describe('Case 1: on the current branch, a push another run beat is tried again'
     expect(remoteMain(repo, remote, env, 'rev-list --count main').trim()).toBe('3');
   });
 
-  it('staged work blocks the rebase: a warning, the receipt still committed, the staged work kept', () => {
+  it('changed and staged files in the checkout do not block the retry, and are kept', () => {
     const { root, repo, remote, env, out } = setup();
     remoteMovesOn(root, remote, env);
     fs.writeFileSync(path.join(repo, 'wip.txt'), 'my work\n');
     git(repo, ['add', 'wip.txt'], env);
+    fs.writeFileSync(path.join(repo, 'README.md'), '# changed by a build step\n');
     const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/::warning::The receipt was not saved/);
-    expect(r.output('receipt-pushed')).toBe('false');
+    expect(r.stdout).not.toContain('::warning::');
+    expect(r.output('receipt-pushed')).toBe('true');
     expect(git(repo, ['diff', '--cached', '--name-only'], env).trim()).toBe('wip.txt');
-    expect(git(repo, ['show', '--format=%s', '--name-only', 'HEAD'], env).trim().split('\n').filter(Boolean)).toEqual([
-      'chore(taf): update .taf receipt [skip ci]', 'pkg/.taf',
+    expect(git(repo, ['diff', '--name-only'], env).trim()).toBe('README.md');
+    expect(remoteMain(repo, remote, env, 'show --format= --name-only main').trim()).toBe('pkg/.taf');
+    expect(remoteMain(repo, remote, env, 'log --format=%s main').trim().split('\n')).toEqual([
+      'chore(taf): update .taf receipt [skip ci]', 'someone else', 'base',
     ]);
-    expect(receipts(fs.readFileSync(path.join(repo, 'pkg', '.taf'), 'utf-8'))).toBe(1);
-    expect(remoteMain(repo, remote, env, 'log --format=%s main').trim().split('\n')).toEqual(['someone else', 'base']);
+  });
+
+  it('a push that lost the race while it ran (cannot lock ref) counts as behind', () => {
+    const racing = "To https://github.com/o/r\n ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at 1111111 but expected 2222222)\nerror: failed to push some refs\n";
+    expect(pushWasBehind(racing)).toBe(true);
+    expect(pushWasBehind(' ! [remote rejected] main -> main (failed to update ref)\n')).toBe(true);
   });
 });
 

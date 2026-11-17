@@ -89,7 +89,8 @@ describe('pushReceipt', () => {
     addLine(a, 'ra')();
     const real = gitIn(a);
     const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args));
-    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false)).toEqual({ pushed: false, attempts: 5 });
+    // One push was tried before the stop: the count says so, not the maximum.
+    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false)).toEqual({ pushed: false, attempts: 1 });
     fs.rmSync(root, { recursive: true, force: true });
   });
 });
