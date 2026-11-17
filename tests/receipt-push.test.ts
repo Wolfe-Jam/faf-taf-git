@@ -43,6 +43,9 @@ const addLine = (dir: string, id: string) => () => {
 const remoteTaf = (remote: string) =>
   spawnSync('git', ['--git-dir', remote, 'show', 'taf-receipts:.taf'], { encoding: 'utf-8' }).stdout;
 
+// The real wait between tries is up to seconds; these tests do not need it.
+const noWait = { wait: async () => {} };
+
 describe('pushReceipt', () => {
   it('pushes on the first try when nobody else did', async () => {
     const { root, remote, a } = setup();
@@ -50,7 +53,7 @@ describe('pushReceipt', () => {
     const calls: string[][] = [];
     const git: Git = async (args) => { calls.push(args); return gitIn(a)(args); };
 
-    expect(await pushReceipt(git, 'taf-receipts', 'receipt', addLine(a, 'never'))).toEqual({ pushed: true, attempts: 1 });
+    expect(await pushReceipt(git, 'taf-receipts', 'receipt', addLine(a, 'never'), noWait)).toEqual({ pushed: true, attempts: 1 });
     expect(calls.some((c) => c[0] === 'fetch')).toBe(false);
     expect(remoteTaf(remote)).toBe('test_history:\n  - timestamp: r0\n  - timestamp: ra\n');
     fs.rmSync(root, { recursive: true, force: true });
@@ -61,9 +64,9 @@ describe('pushReceipt', () => {
     // Both runs add a receipt to the same tip; A pushes first.
     addLine(a, 'ra')();
     addLine(b, 'rb')();
-    expect((await pushReceipt(gitIn(a), 'taf-receipts', 'receipt a', addLine(a, 'ra'))).pushed).toBe(true);
+    expect((await pushReceipt(gitIn(a), 'taf-receipts', 'receipt a', addLine(a, 'ra'), noWait)).pushed).toBe(true);
 
-    const result = await pushReceipt(gitIn(b), 'taf-receipts', 'receipt b', addLine(b, 'rb'));
+    const result = await pushReceipt(gitIn(b), 'taf-receipts', 'receipt b', addLine(b, 'rb'), noWait);
     expect(result).toEqual({ pushed: true, attempts: 2 });
     // Both receipts are on the remote, in order, and the branch only grew.
     expect(remoteTaf(remote)).toBe('test_history:\n  - timestamp: r0\n  - timestamp: ra\n  - timestamp: rb\n');
@@ -78,7 +81,7 @@ describe('pushReceipt', () => {
     const real = gitIn(a);
     const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args)); // every push rejected
     const added: string[] = [];
-    const result = await pushReceipt(git, 'taf-receipts', 'receipt', () => { added.push('x'); return addLine(a, 'ra')(); });
+    const result = await pushReceipt(git, 'taf-receipts', 'receipt', () => { added.push('x'); return addLine(a, 'ra')(); }, noWait);
     expect(result).toEqual({ pushed: false, attempts: 5 });
     expect(added).toHaveLength(4); // re-added for tries 2 to 5
     fs.rmSync(root, { recursive: true, force: true });
@@ -90,7 +93,18 @@ describe('pushReceipt', () => {
     const real = gitIn(a);
     const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args));
     // One push was tried before the stop: the count says so, not the maximum.
-    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false)).toEqual({ pushed: false, attempts: 1 });
+    expect(await pushReceipt(git, 'taf-receipts', 'receipt', () => false, noWait)).toEqual({ pushed: false, attempts: 1 });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('waits before each try after the first, longer each time', async () => {
+    const { root, a } = setup();
+    addLine(a, 'ra')();
+    const real = gitIn(a);
+    const git: Git = async (args) => (args[0] === 'push' ? 1 : real(args));
+    const waits: number[] = [];
+    await pushReceipt(git, 'taf-receipts', 'receipt', addLine(a, 'ra'), { wait: async (n) => { waits.push(n); } });
+    expect(waits).toEqual([2, 3, 4, 5]);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

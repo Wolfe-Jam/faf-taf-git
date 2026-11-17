@@ -42,7 +42,7 @@ inputs:
     default: 'false'
 
   test-outcome:
-    description: 'The outcome of your test step or job: steps.<id>.outcome, or needs.<job>.result. When it is failure, the receipt is FAILED even if the output counts no failed test (a test file that did not compile, a coverage threshold). Optional: left out, the result comes from the output alone.'
+    description: 'The outcome of your test step or job: steps.<id>.outcome, or needs.<job>.result. Only failure counts (any case): the receipt is FAILED even if the output counts no failed test, and with output that counts nothing at all it is a FAILED receipt with zero counts. A job result is failure when any step of the job failed. Any other value, or left out: the result comes from the output alone.'
     required: false
     default: ''
 

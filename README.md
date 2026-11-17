@@ -105,7 +105,7 @@ That's it. The first run creates the `taf-receipts` branch for you.
 
 **Five things this setup gets right:**
 
-1. **Failed runs get a receipt too.** A red run is recorded as `FAILED`, not left out. A history with only green runs proves less.
+1. **Failed runs get a receipt too.** A red run whose tests ran is recorded as `FAILED`, not left out, even when no single test failed (a file that did not compile, a coverage threshold). A history with only green runs proves less. A run that failed before the tests started (the build) has no test output, so it gets no receipt.
 2. **Only `main` gets receipts.** Pull requests still run the tests, but the record is about `main`. A pull request from a fork gets a read-only token, so it could not save a receipt anyway.
 3. **The test job goes red** when tests fail, with no extra steps: it runs the tests the normal way.
 4. **Tests run once.** The receipt reads the output of the run that just happened.
@@ -119,13 +119,13 @@ Give the `receipt` job `permissions: contents: write`: a reusable workflow gets 
 |---|---|---|
 | `artifact-name` | The artifact your test job uploaded | required |
 | `test-output-file` | The file inside that artifact: the test output or JUnit XML report. A single uploaded file sits at the artifact's root, so `path: reports/junit.xml` is `junit.xml` here | required |
-| `test-result` | The test job's result, `${{ needs.test.result }}`. When it is `failure` the receipt is `FAILED`, even if the output counts no failed test (a test file that did not compile, a coverage threshold) | none |
+| `test-result` | The test job's result, `${{ needs.test.result }}`. When it is `failure` the receipt is `FAILED`, even if the output counts no failed test (a test file that did not compile, a coverage threshold). It is the whole job's result: a step after the tests that fails makes the receipt `FAILED` too | required |
 | `target-branch` | The branch receipts are saved to | `taf-receipts` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `runs-on` | The runner for the receipt job | `ubuntu-latest` |
 | `commit-message` | The commit message for each receipt | `chore(taf): update .taf receipt [skip ci]` |
 
-If the tests never ran (the build failed first), there is no test output to download: the receipt job says so in a notice and writes no receipt, without failing. If the test job passed and there is still no artifact, the name is wrong: the receipt job fails and says so.
+If the test job failed and there is no artifact, the receipt job writes no receipt and gives a warning: either the tests never ran (the build failed first), or the upload step is missing `if: ${{ !cancelled() }}`, or the name is wrong. If the test job passed and there is still no artifact, the name is wrong: the receipt job fails and says so.
 
 Its outputs are the action's outputs (see [Settings](#settings)), for example `${{ needs.receipt.outputs.result }}`.
 
@@ -226,7 +226,9 @@ npx faf-taf-git badge --output badge.svg
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). A push another run beat is tried again first, up to 5 times. With `target-branch`, a push that fails after 5 tries always fails | `false` |
 | `fail-on-failed-tests` | Fail the step when the receipt is `FAILED` (failing tests, or `test-outcome: failure`), after the receipt is saved and the outputs are set | `false` |
-| `test-outcome` | Your test step's outcome (`${{ steps.tests.outcome }}`) or test job's result. `failure` makes the receipt `FAILED` even when the output counts no failed test | none |
+| `test-outcome` | Your test step's outcome (`${{ steps.tests.outcome }}`) or test job's result. Only `failure` counts: the receipt is `FAILED` even when the output counts no failed test, or nothing at all. Any other value leaves the result to the output | none |
+
+**When another run pushes first.** On the current branch (no `target-branch`) the action tries the push again up to 5 times, with a short random wait between tries, from a temporary worktree that holds only `.taf`. Your checkout is not moved: later steps in the job run on the commit that was tested. After such a retry the checkout keeps its own receipt commit, which was not pushed, so it is behind the remote and its `.taf` lacks the other runs' receipts. A later step that reads `.taf` or pushes should fetch first, or use `target-branch`. Commits that earlier steps made in the checkout go out with the receipt only when the first push succeeds; a retry pushes the receipt alone.
 
 **Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 

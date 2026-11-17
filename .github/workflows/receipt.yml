@@ -34,10 +34,9 @@ on:
         type: string
         default: '25'
       test-result:
-        description: "The test job's result: needs.<test job>.result. A failed test job is recorded as FAILED even when its output counts no failed test, and a test job that passed but uploaded no artifact fails this job"
-        required: false
+        description: "The test job's result: needs.<test job>.result. failure is recorded as FAILED even when the output counts no failed test (or none at all); success with no artifact fails this job (a wrong artifact name)"
+        required: true
         type: string
-        default: ''
       runs-on:
         description: 'The runner for the receipt job'
         required: false
@@ -98,9 +97,9 @@ jobs:
           name: ${{ inputs.artifact-name }}
           path: ${{ runner.temp }}/taf-receipt-input
 
-      # No artifact after a failed test job: the tests never ran (the build
-      # failed first), so there is nothing to record. No artifact after a test
-      # job that passed: the artifact name is wrong, so this job fails.
+      # No artifact after a test job that passed: the artifact name is wrong,
+      # so this job fails. After a failed test job: a warning, since the build
+      # may have failed before the tests, or the upload step was skipped.
       - name: No test output, no receipt
         if: steps.download.outcome != 'success'
         env:
@@ -111,7 +110,7 @@ jobs:
             echo "::error::The test job passed but no artifact named '$ARTIFACT' was found. Check artifact-name against the test job's upload step. No receipt was written."
             exit 1
           fi
-          echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+          echo "::warning::The test job did not pass and no artifact named '$ARTIFACT' was found, so no receipt was written. Either the tests never ran (the build failed first), or the upload step is missing an if: !cancelled() condition, or the artifact name is wrong."
 
       # Pinned to the release this file ships in: a reusable workflow cannot
       # read its own ref. tests/receipt-workflow.test.ts fails when this pin

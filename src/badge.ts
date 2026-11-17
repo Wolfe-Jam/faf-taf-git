@@ -24,6 +24,8 @@ interface LatestRun {
   total: number;
   failed: number;
   skipped: number;
+  /** The receipt's result (PASSED, FAILED, ...); '' when missing. */
+  result: string;
 }
 
 const COLOR_PASS = '#003366';  // Navy blue (deep — white-text contrast; cyan was too light)
@@ -100,6 +102,7 @@ function getLatestRun(tafPath: string): LatestRun | null {
     total: latest.tests.total,
     failed: latest.tests.failed ?? 0,
     skipped: latest.tests.skipped ?? 0,
+    result: typeof latest.result === 'string' ? latest.result : '',
   };
 }
 
@@ -121,8 +124,11 @@ export function generateBadge(options: BadgeOptions = {}): BadgeResult {
     }
 
     const skippedSuffix = run.skipped > 0 ? ` (${run.skipped} skipped)` : '';
-    const value = `${run.passed}/${run.total} passing${skippedSuffix}`;
-    const color = run.failed > 0 ? COLOR_FAIL : run.passed === 0 ? COLOR_NONE : COLOR_PASS;
+    // A FAILED receipt with no failed test (the test step failed another way:
+    // a file that did not compile, a coverage threshold) is red, not passing.
+    const failedRun = run.result === 'FAILED' && run.failed === 0;
+    const value = failedRun ? 'run failed' : `${run.passed}/${run.total} passing${skippedSuffix}`;
+    const color = run.failed > 0 || failedRun ? COLOR_FAIL : run.passed === 0 ? COLOR_NONE : COLOR_PASS;
 
     return {
       success: true,

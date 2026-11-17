@@ -129,10 +129,11 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   let failed = '';
   const gitIn = (dir: string) => async (args: string[]): Promise<number> => {
     const r = await exec.getExecOutput('git', args, { cwd: dir, env: botGitEnv(), ignoreReturnCode: true });
-    if (args[0] === 'push') {
+    const cmd = args[0] === '-c' ? args[2] : args[0]; // past a leading `-c name=value`
+    if (cmd === 'push') {
       pushStderr = r.stderr;
     } else if (r.exitCode !== 0 && !failed) {
-      failed = `git ${args[0]} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`;
+      failed = `git ${cmd} failed (exit ${r.exitCode}): ${r.stderr.trim().split('\n').filter(Boolean).pop() ?? ''}`;
     }
     return r.exitCode;
   };
@@ -144,22 +145,40 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
   if ((await here(['push', remote, `HEAD:refs/heads/${upstreamBranch}`])) === 0) {return true;}
 
   // Another run pushed first: try again on top of it, from a temporary
-  // worktree at the remote tip. This checkout stays on the commit that was
-  // tested; it keeps its own receipt commit, unpushed. A push the server
-  // refused (a read-only token, a protected branch) is not tried again.
+  // worktree at the remote tip that holds only .taf (no full checkout, no
+  // hooks). This checkout stays on the commit that was tested; it keeps its
+  // own receipt commit, unpushed. A push the server refused (a read-only
+  // token, a protected branch) is not tried again. Anything that goes wrong
+  // here ends on the warning below, never a hard failure.
   let pushes = 1;
-  const behind = pushWasBehind(pushStderr);
-  if (behind) {
-    const repoRoot = await gitOut(cwd, ['rev-parse', '--show-toplevel']);
-    const rel = path.relative(fs.realpathSync(repoRoot), fs.realpathSync(cwd));
-    const remoteRef = `refs/remotes/${remote}/${upstreamBranch}`;
-    const worktree = path.join(fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-retry-')), 'wt');
+  if (pushWasBehind(pushStderr)) {
+    let repoRoot = '';
+    let worktree = '';
     try {
-      if ((await here(['fetch', remote, `+refs/heads/${upstreamBranch}:${remoteRef}`])) === 0
-        && (await here(['worktree', 'add', '--detach', worktree, remoteRef])) === 0) {
+      repoRoot = await gitOut(cwd, ['rev-parse', '--show-toplevel']);
+      const rel = path.relative(fs.realpathSync(repoRoot), fs.realpathSync(cwd));
+      const relTaf = rel ? `${rel.split(path.sep).join('/')}/.taf` : '.taf';
+      const remoteRef = `refs/remotes/${remote}/${upstreamBranch}`;
+      const base = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'faf-taf-retry-'));
+      worktree = path.join(base, 'wt');
+      const noHooks = path.join(base, 'no-hooks');
+      fs.mkdirSync(noHooks);
+      const quietGit = (dir: string) => {
+        const g = gitIn(dir);
+        return (args: string[]) => g(['-c', `core.hooksPath=${noHooks}`, ...args]);
+      };
+      const inRepo = quietGit(cwd);
+      if ((await inRepo(['fetch', remote, `+refs/heads/${upstreamBranch}:${remoteRef}`])) === 0
+        && (await inRepo(['worktree', 'add', '--no-checkout', '--detach', worktree, remoteRef])) === 0
+        && (await quietGit(worktree)(['checkout', remoteRef, '--', relTaf])) === 0) {
         const retryTaf = path.join(worktree, rel, '.taf');
-        if (writeReceipt(retryTaf)) {
-          const r = await pushReceipt(gitIn(path.join(worktree, rel)), upstreamBranch, message, () => writeReceipt(retryTaf), {
+        const write = (): boolean => {
+          if (writeReceipt(retryTaf)) {return true;}
+          if (!failed) {failed = `the receipt could not be added to ${relTaf} at the tip of ${upstreamBranch}`;}
+          return false;
+        };
+        if (write()) {
+          const r = await pushReceipt(quietGit(path.join(worktree, rel)), upstreamBranch, message, write, {
             remote,
             attempts: 4,
             retry: () => pushWasBehind(pushStderr),
@@ -171,16 +190,19 @@ async function commitTafUpdate(cwd: string, message: string, targetBranch: strin
           }
         }
       }
+    } catch (error) {
+      if (!failed) {failed = `the retry could not start: ${error instanceof Error ? error.message : String(error)}`;}
     } finally {
-      await closeReceiptsWorktree(repoRoot, worktree);
+      if (worktree) {await closeReceiptsWorktree(repoRoot, worktree);}
     }
   }
 
   // On the current branch a push that can't succeed is a warning unless
   // fail-on-push-error says otherwise: it was a warning before 2.6.0, and many
-  // workflows rely on it.
+  // workflows rely on it. The advice follows the last failure.
   const why = `${pushFailureReason(pushStderr)}${failed ? `; then ${failed}` : ''}`;
-  const fix = behind && !failed
+  const lostRace = pushWasBehind(pushStderr) && !failed;
+  const fix = lostRace
     ? `Other runs kept pushing to ${upstreamBranch} first (${pushes} ${pushes === 1 ? 'push' : 'pushes'}). To fix it: use "target-branch: taf-receipts", so receipts do not race other pushes.`
     : 'To fix it: give the job "permissions: contents: write", or for a protected branch use "target-branch: taf-receipts".';
   const text = `The receipt was not saved. The push to ${upstreamBranch} failed (${why}), and the receipt commit is lost when this job ends. ${fix}`;
@@ -231,11 +253,18 @@ async function run(): Promise<void> {
     }
 
     // Parse test results
-    const testResults = parseTestOutput(testOutput);
+    let testResults = parseTestOutput(testOutput);
 
     if (!testResults) {
-      core.setFailed(noResultsReason(testOutput));
-      return;
+      if (testOutcome !== 'failure') {
+        core.setFailed(noResultsReason(testOutput));
+        return;
+      }
+      // The test step failed and its output counts nothing (the only test
+      // file did not compile, the runner died before it started): the run
+      // was red, so it gets a FAILED receipt with zero counts.
+      core.warning(`${noResultsReason(testOutput)}. test-outcome is failure: recorded as FAILED with zero counts.`);
+      testResults = { total: 0, passed: 0, failed: 0, skipped: 0, result: 'FAILED' };
     }
 
     core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
