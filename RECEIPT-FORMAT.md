@@ -58,7 +58,7 @@ test_history:                  # append-only, oldest → newest
 |---|---|---|
 | `test_history[]` | **required** | the spine — the one hard parse requirement; append-only, never edit a past entry |
 | `…timestamp` | **required** | ISO 8601 UTC |
-| `…result` | **required** | enum: `PASSED` \| `FAILED` \| `IMPROVED` \| `DEGRADED` \| `SKIPPED` (added in 2.4.4: tests were found and every one was skipped). Readers should show a value they don't know rather than reject the receipt |
+| `…result` | **required** | enum: `PASSED` \| `FAILED` \| `IMPROVED` \| `DEGRADED` \| `SKIPPED` (added in 2.4.4: tests were found and every one was skipped). Readers should show a value they don't know rather than reject the receipt. Since 2.7.0 a `FAILED` receipt can have `failed: 0` (or zero counts): the test step failed without a failing test, such as a test file that did not compile or a coverage threshold |
 | `…tests{total,passed,failed}` | **required** | nested; `skipped` optional |
 | `…trigger` / `…command` | optional | provenance of the run |
 | `…skipped_tests` | optional (v1.1) | which tests were skipped, so a steady count can't hide a changed set. `names`: sorted, normalised (no colour codes, paths or timings), capped (25 by default; `truncated: true` past the cap). `hash`: sha256 of every name, sorted and `\n`-joined, so readers compare sets past the cap. `newly_skipped` / `no_longer_skipped`: against the receipt before this one, only when non-empty and that receipt's set is known (a receipt with no block and no skips counts as an empty set). Written only when the output names every skipped test; `names: []` with `no_longer_skipped` marks a return to zero |

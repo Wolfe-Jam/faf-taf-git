@@ -238,7 +238,7 @@ npx faf-taf-git badge --output badge.svg
 
 Receipts are written by CI from the real test output and saved in git. Editing or deleting an old receipt changes the git history, so anyone comparing the history can see it. The `taf-receipts` branch only ever grows: never rewrite, squash or force-push it.
 
-A receipt proves the tests passed on that commit. It does not prove a published package was built from that exact commit.
+A receipt records what one CI run's tests did, and when. It does not name the commit it tested, and it does not prove a published package was built from any commit.
 
 ## With FAF (optional)
 

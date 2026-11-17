@@ -118,7 +118,7 @@ jobs:
       - name: Write the receipt
         id: taf
         if: steps.download.outcome == 'success'
-        uses: Wolfe-Jam/faf-taf-git@v2.6.0
+        uses: Wolfe-Jam/faf-taf-git@v2.7.0
         with:
           test-output-file: ${{ runner.temp }}/taf-receipt-input/${{ inputs.test-output-file }}
           auto-commit: 'true'

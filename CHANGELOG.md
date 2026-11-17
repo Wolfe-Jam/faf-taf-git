@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.6.0 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v2.7.0 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -8,7 +8,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.7.0] - 2026-11-17 — Red Runs Edition
+
+A red CI run now gets a FAILED receipt, written by a separate job that is the only one with write access.
 
 ### Added
 - **A reusable workflow, `.github/workflows/receipt.yml`:** call it from a job that `needs` your test job. The test job uploads its output as an artifact; the receipt job downloads it and saves the receipt to `taf-receipts`. With `if: ${{ !cancelled() }}` on the calling job a red run is recorded as `FAILED`, and only that job has `contents: write`. Inputs: `artifact-name`, `test-output-file`, `test-result`, `target-branch`, `skipped-names`, `runs-on`, `commit-message`. The action's outputs are passed through. `test-result: ${{ needs.<test job>.result }}` is required: a failed test job is recorded as `FAILED` even when its output counts no failed test. No artifact after a failed test job: no receipt, and a warning that names the causes (the build failed first, an upload step without `if: ${{ !cancelled() }}`, a wrong name). No artifact after a test job that passed means a wrong `artifact-name`, and the job fails. The README now leads with this setup.
