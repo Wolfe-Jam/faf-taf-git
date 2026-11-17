@@ -90,7 +90,7 @@ jobs:
             echo "::error::The test job passed but no test-output artifact was found. No receipt was written."
             exit 1
           fi
-          echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+          echo "::warning::The test job did not pass and no artifact named 'test-output' was found, so no receipt was written. Either the tests never ran (the build failed first), or the upload step is missing an if: !cancelled() condition, or the artifact name is wrong."
 
       - name: Write the receipt (this commit's Action)
         if: steps.download.outcome == 'success'

@@ -112,6 +112,7 @@ function getLatestRun(tafPath) {
         total: latest.tests.total,
         failed: latest.tests.failed ?? 0,
         skipped: latest.tests.skipped ?? 0,
+        result: typeof latest.result === 'string' ? latest.result : '',
     };
 }
 /**
@@ -129,8 +130,11 @@ function generateBadge(options = {}) {
             };
         }
         const skippedSuffix = run.skipped > 0 ? ` (${run.skipped} skipped)` : '';
-        const value = `${run.passed}/${run.total} passing${skippedSuffix}`;
-        const color = run.failed > 0 ? COLOR_FAIL : run.passed === 0 ? COLOR_NONE : COLOR_PASS;
+        // A FAILED receipt with no failed test (the test step failed another way:
+        // a file that did not compile, a coverage threshold) is red, not passing.
+        const failedRun = run.result === 'FAILED' && run.failed === 0;
+        const value = failedRun ? 'run failed' : `${run.passed}/${run.total} passing${skippedSuffix}`;
+        const color = run.failed > 0 || failedRun ? COLOR_FAIL : run.passed === 0 ? COLOR_NONE : COLOR_PASS;
         return {
             success: true,
             svg: renderBadgeSvg(label, value, color),

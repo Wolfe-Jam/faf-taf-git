@@ -307,6 +307,37 @@ describe('Case 1: on the current branch, a push another run beat is tried again'
     ]);
   });
 
+  it('the retry checks out only .taf, runs no hooks, and pushes the whole tree unchanged', () => {
+    const { root, repo, remote, env, out } = setup();
+    const marker = path.join(root, 'hook-ran');
+    fs.writeFileSync(path.join(repo, '.git', 'hooks', 'post-checkout'), `#!/bin/sh\ntouch "${marker}"\n`, { mode: 0o755 });
+    remoteMovesOn(root, remote, env);
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
+    expect(r.output('receipt-pushed')).toBe('true');
+    expect(fs.existsSync(marker)).toBe(false);
+    expect(remoteMain(repo, remote, env, 'ls-tree -r --name-only main').trim().split('\n').sort()).toEqual(['README.md', 'pkg/.taf', 'x.txt']);
+  });
+
+  it('a retry the server refuses: the warning gives the refusal\'s fix, not a race', () => {
+    const { root, repo, remote, env, out } = setup();
+    remoteMovesOn(root, remote, env);
+    refusePushes(remote);
+    const r = runAction(path.join(repo, 'pkg'), env, { 'test-output-file': out });
+    expect(r.status).toBe(0);
+    expect(r.output('receipt-pushed')).toBe('false');
+    expect(r.stdout).toMatch(/::warning::The receipt was not saved\. .*pre-receive hook declined.*permissions: contents: write/);
+    expect(r.stdout).not.toContain('Other runs kept pushing');
+  });
+
+  it('a retry that cannot start ends on the warning, not a failed step', () => {
+    const { root, repo, remote, env, out } = setup();
+    remoteMovesOn(root, remote, env);
+    const r = runAction(path.join(repo, 'pkg'), { ...env, RUNNER_TEMP: path.join(root, 'does-not-exist') }, { 'test-output-file': out });
+    expect(r.status).toBe(0);
+    expect(r.output('receipt-pushed')).toBe('false');
+    expect(r.stdout).toMatch(/::warning::The receipt was not saved\. .*the retry could not start/);
+  });
+
   it('a push that lost the race while it ran (cannot lock ref) counts as behind', () => {
     const racing = "To https://github.com/o/r\n ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at 1111111 but expected 2222222)\nerror: failed to push some refs\n";
     expect(pushWasBehind(racing)).toBe(true);

@@ -124,6 +124,27 @@ test_history:
     expect(result.svg).toContain('#E32400');
   });
 
+  test('a FAILED receipt with no failed test is red, not passing', () => {
+    const tafPath = path.join(tempDir, '.taf');
+    fs.writeFileSync(tafPath, `format_version: 1.0.0
+project: test
+test_history:
+  - timestamp: "2026-01-01T00:00:00Z"
+    result: FAILED
+    tests:
+      total: 5
+      passed: 5
+      failed: 0
+`);
+
+    const result = generateBadge({ tafPath });
+
+    expect(result.success).toBe(true);
+    expect(result.svg).toContain('run failed');
+    expect(result.svg).not.toContain('passing');
+    expect(result.svg).toContain('#E32400');
+  });
+
   test('should generate gray badge when .taf is missing', () => {
     const tafPath = path.join(tempDir, '.taf');
     // Don't create the file

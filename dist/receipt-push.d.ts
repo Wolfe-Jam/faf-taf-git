@@ -9,10 +9,12 @@
  *
  * Catching up: the receipt is written in a temporary worktree on a detached
  * HEAD (the receipts branch, or for the current branch a worktree at the
- * remote tip), never in the job's own checkout. Resetting that worktree to
- * the remote throws away only this run's own rejected receipt commit; the
- * job's checkout is never moved, so later steps run on the code that was
- * tested.
+ * remote tip that holds only .taf), never in the job's own checkout. HEAD is
+ * moved to the remote tip and .taf taken from it, which throws away only this
+ * run's own rejected receipt commit and touches no other file; the job's
+ * checkout is never moved, so later steps run on the code that was tested.
+ * Tries are spaced by a short random wait, so runs that keep colliding drift
+ * apart.
  *
  * Both push HEAD to the branch and fetch with an explicit refspec (a
  * single-branch checkout's fetch config doesn't cover a receipts branch).
@@ -30,5 +32,7 @@ export interface PushOptions {
     remote?: string;
     /** Asked after a failed push: is another try worth it? Default: always. */
     retry?: () => boolean;
+    /** Waits before try `attempt` (2 and up). Default: a random 0.5 to 1.5 s, times (attempt - 1). */
+    wait?: (attempt: number) => Promise<void>;
 }
 export declare function pushReceipt(git: Git, targetBranch: string, message: string, addReceipt: () => boolean, options?: PushOptions): Promise<PushResult>;

@@ -10,18 +10,21 @@
  *
  * Catching up: the receipt is written in a temporary worktree on a detached
  * HEAD (the receipts branch, or for the current branch a worktree at the
- * remote tip), never in the job's own checkout. Resetting that worktree to
- * the remote throws away only this run's own rejected receipt commit; the
- * job's checkout is never moved, so later steps run on the code that was
- * tested.
+ * remote tip that holds only .taf), never in the job's own checkout. HEAD is
+ * moved to the remote tip and .taf taken from it, which throws away only this
+ * run's own rejected receipt commit and touches no other file; the job's
+ * checkout is never moved, so later steps run on the code that was tested.
+ * Tries are spaced by a short random wait, so runs that keep colliding drift
+ * apart.
  *
  * Both push HEAD to the branch and fetch with an explicit refspec (a
  * single-branch checkout's fetch config doesn't cover a receipts branch).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.pushReceipt = pushReceipt;
+const randomWait = (attempt) => new Promise((resolve) => setTimeout(resolve, (500 + Math.random() * 1000) * (attempt - 1)));
 async function pushReceipt(git, targetBranch, message, addReceipt, options = {}) {
-    const { attempts = 5, remote = 'origin', retry = () => true } = options;
+    const { attempts = 5, remote = 'origin', retry = () => true, wait = randomWait } = options;
     const remoteRef = `refs/remotes/${remote}/${targetBranch}`;
     // Name .taf on both: the receipt commit holds the receipt and nothing else.
     const commit = async () => (await git(['add', '--', '.taf'])) === 0 && (await git(['commit', '-m', message, '--', '.taf'])) === 0;
@@ -30,10 +33,14 @@ async function pushReceipt(git, targetBranch, message, addReceipt, options = {})
     for (let attempt = 1; attempt <= attempts; attempt++) {
         if (attempt > 1) {
             // Another run pushed first: start again from its receipts.
+            await wait(attempt);
             if ((await git(['fetch', remote, `+refs/heads/${targetBranch}:${remoteRef}`])) !== 0) {
                 break;
             }
-            if ((await git(['reset', '--hard', remoteRef])) !== 0) {
+            if ((await git(['reset', '--soft', remoteRef])) !== 0) {
+                break;
+            }
+            if ((await git(['checkout', remoteRef, '--', '.taf'])) !== 0) {
                 break;
             }
             if (!addReceipt()) {

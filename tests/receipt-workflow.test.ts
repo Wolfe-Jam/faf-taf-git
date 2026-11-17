@@ -36,8 +36,8 @@ describe('reusable workflow: receipt.yml', () => {
     expect(inputs['skipped-names'].default).toBe('25');
     expect(inputs['runs-on'].default).toBe('ubuntu-latest');
     expect(inputs['commit-message'].default).toBe('chore(taf): update .taf receipt [skip ci]');
-    expect(inputs['test-result'].required).toBe(false);
-    expect(inputs['test-result'].default).toBe('');
+    expect(inputs['test-result'].required).toBe(true);
+    expect(inputs['test-result'].default).toBeUndefined();
   });
 
   it('gives the Action only inputs it has, and passes every Action output through', () => {
@@ -50,7 +50,7 @@ describe('reusable workflow: receipt.yml', () => {
     expect(tafSteps[0].with?.['test-outcome']).toBe('${{ inputs.test-result }}');
   });
 
-  it('no test output: skips quietly after a failed test job, fails after one that passed', () => {
+  it('no test output: a warning after a failed test job, a failure after one that passed', () => {
     const download = steps.find((s: any) => s.id === 'download') as any;
     expect(download.uses).toMatch(/^actions\/download-artifact@/);
     expect(download['continue-on-error']).toBe(true);
@@ -59,7 +59,7 @@ describe('reusable workflow: receipt.yml', () => {
     // The input reaches the script through env, never interpolated into it.
     expect(none.env.TEST_RESULT).toBe('${{ inputs.test-result }}');
     expect(none.run).not.toContain('${{');
-    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "success" \]; then[\s\S]*exit 1[\s\S]*fi[\s\S]*::notice::/);
+    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "success" \]; then[\s\S]*::error::[\s\S]*exit 1[\s\S]*fi[\s\S]*::warning::.*cancelled\(\)/);
   });
 
   it('write access is on the receipt job only', () => {

@@ -134,6 +134,32 @@ describe('fail-on-failed-tests', () => {
       expect(pushed('main')).toEqual(['FAILED']);
     });
 
+    it.each([
+      ['counts nothing', 'Test Suites: 1 failed, 1 total\nTests:       0 total\n'],
+      ['has no summary at all', 'Error: Cannot find module jest.config.js\n'],
+    ])('failure, and the output %s: a FAILED receipt with zero counts', (_what, output) => {
+      const { run, pushed } = setup(output);
+      const r = run({ 'test-outcome': 'failure', 'target-branch': 'taf-receipts' });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/::warning::.*recorded as FAILED with zero counts/);
+      expect(pushed('taf-receipts')).toEqual(['FAILED']);
+      expect(r.output('total')).toBe('0');
+      expect(r.output('receipt-pushed')).toBe('true');
+    });
+
+    it('output that counts nothing, without test-outcome: no receipt, the step fails, as before', () => {
+      const { run } = setup('Tests:       0 total\n');
+      const r = run({});
+      expect(r.status).toBe(1);
+      expect(r.output('taf-updated')).toBeUndefined();
+    });
+
+    it('any case of failure counts', () => {
+      const { run, pushed } = setup(GREEN_RUN);
+      run({ 'test-outcome': ' FAILURE ' });
+      expect(pushed('main')).toEqual(['FAILED']);
+    });
+
     it.each(['success', 'skipped', ''])('%p leaves the result to the output', (outcome) => {
       const { run, pushed } = setup(GREEN_RUN);
       const r = run({ 'test-outcome': outcome, 'fail-on-failed-tests': 'true' });
