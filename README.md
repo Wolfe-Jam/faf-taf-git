@@ -105,7 +105,7 @@ That's it. The first run creates the `taf-receipts` branch for you.
 
 **Five things this setup gets right:**
 
-1. **Failed runs get a receipt too.** A red run whose tests ran is recorded as `FAILED`, not left out, even when no single test failed (a file that did not compile, a coverage threshold). A history with only green runs proves less. A run that failed before the tests started (the build) has no test output, so it gets no receipt.
+1. **Failed runs get a receipt too.** A red run is recorded as `FAILED`, not left out, even when no single test failed (a coverage threshold) or the tests never reported (the install failed, a test did not compile): then the receipt has zero counts. A history with only green runs proves less.
 2. **Only `main` gets receipts.** Pull requests still run the tests, but the record is about `main`. A pull request from a fork gets a read-only token, so it could not save a receipt anyway.
 3. **The test job goes red** when tests fail, with no extra steps: it runs the tests the normal way.
 4. **Tests run once.** The receipt reads the output of the run that just happened.
@@ -119,13 +119,13 @@ Give the `receipt` job `permissions: contents: write`: a reusable workflow gets 
 |---|---|---|
 | `artifact-name` | The artifact your test job uploaded | required |
 | `test-output-file` | The file inside that artifact: the test output or JUnit XML report. A single uploaded file sits at the artifact's root, so `path: reports/junit.xml` is `junit.xml` here | required |
-| `test-result` | The test job's result, `${{ needs.test.result }}`. When it is `failure` the receipt is `FAILED`, even if the output counts no failed test (a test file that did not compile, a coverage threshold). It is the whole job's result: a step after the tests that fails makes the receipt `FAILED` too | required |
+| `test-result` | The test job's result, `${{ needs.test.result }}`. When it is `failure` the receipt is `FAILED`, even if the output counts no failed test (a coverage threshold) or there is no output at all (zero counts). It is the whole job's result: a step after the tests that fails makes the receipt `FAILED` too | required |
 | `target-branch` | The branch receipts are saved to | `taf-receipts` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `runs-on` | The runner for the receipt job | `ubuntu-latest` |
 | `commit-message` | The commit message for each receipt | `chore(taf): update .taf receipt [skip ci]` |
 
-If the test job failed and there is no artifact, the receipt job writes no receipt and gives a warning: either the tests never ran (the build failed first), or the upload step is missing `if: ${{ !cancelled() }}`, or the name is wrong. If the test job passed and there is still no artifact, the name is wrong: the receipt job fails and says so.
+If the test job failed and there is no artifact, the run is recorded as `FAILED` with zero counts, with a warning that names the likely cause: the tests never reported (the install, the build or a test's compile failed first), or the upload step is missing `if: ${{ !cancelled() }}`, or the name is wrong. If the test job passed and there is still no artifact, the name is wrong: the receipt job fails and says so. A test job that was cancelled or skipped gets no receipt.
 
 Its outputs are the action's outputs (see [Settings](#settings)), for example `${{ needs.receipt.outputs.result }}`.
 

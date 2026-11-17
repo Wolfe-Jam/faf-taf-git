@@ -33495,7 +33495,7 @@ async function run() {
             // The test step failed and its output counts nothing (the only test
             // file did not compile, the runner died before it started): the run
             // was red, so it gets a FAILED receipt with zero counts.
-            core.warning(`${(0, parsers_1.noResultsReason)(testOutput)}. test-outcome is failure: recorded as FAILED with zero counts.`);
+            core.warning(`${(0, parsers_1.noResultsReason)(testOutput)} test-outcome is failure: recorded as FAILED with zero counts.`);
             testResults = { total: 0, passed: 0, failed: 0, skipped: 0, result: 'FAILED' };
         }
         core.info(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);

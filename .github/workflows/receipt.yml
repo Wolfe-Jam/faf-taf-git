@@ -34,7 +34,7 @@ on:
         type: string
         default: '25'
       test-result:
-        description: "The test job's result: needs.<test job>.result. failure is recorded as FAILED even when the output counts no failed test (or none at all); success with no artifact fails this job (a wrong artifact name)"
+        description: "The test job's result: needs.<test job>.result. failure is recorded as FAILED even when the output counts no failed test, or when there is no output at all (zero counts); success with no artifact fails this job (a wrong artifact name)"
         required: true
         type: string
       runs-on:
@@ -98,26 +98,37 @@ jobs:
           path: ${{ runner.temp }}/taf-receipt-input
 
       # No artifact after a test job that passed: the artifact name is wrong,
-      # so this job fails. After a failed test job: a warning, since the build
-      # may have failed before the tests, or the upload step was skipped.
-      - name: No test output, no receipt
+      # so this job fails. After a failed test job (the build or install failed
+      # before the tests, a test did not compile, or the upload was skipped):
+      # a placeholder stands in for the output, so the run is still recorded,
+      # as FAILED with zero counts.
+      - name: No test output
+        id: none
         if: steps.download.outcome != 'success'
         env:
           TEST_RESULT: ${{ inputs.test-result }}
           ARTIFACT: ${{ inputs.artifact-name }}
+          OUTPUT_FILE: ${{ runner.temp }}/taf-receipt-input/${{ inputs.test-output-file }}
         run: |
           if [ "$TEST_RESULT" = "success" ]; then
             echo "::error::The test job passed but no artifact named '$ARTIFACT' was found. Check artifact-name against the test job's upload step. No receipt was written."
             exit 1
           fi
-          echo "::warning::The test job did not pass and no artifact named '$ARTIFACT' was found, so no receipt was written. Either the tests never ran (the build failed first), or the upload step is missing an if: !cancelled() condition, or the artifact name is wrong."
+          if [ "$TEST_RESULT" = "failure" ]; then
+            mkdir -p "$(dirname "$OUTPUT_FILE")"
+            echo "No test output: the test job failed before its tests reported." > "$OUTPUT_FILE"
+            echo "placeholder=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::The test job failed and no artifact named '$ARTIFACT' was found: recorded as FAILED with zero counts. Either the tests never reported (the build, the install or a test's compile failed first), or the upload step is missing an if: !cancelled() condition, or the artifact name is wrong."
+            exit 0
+          fi
+          echo "::notice::The test job ended '$TEST_RESULT' and uploaded no test output, so no receipt is written for this run."
 
       # Pinned to the release this file ships in: a reusable workflow cannot
       # read its own ref. tests/receipt-workflow.test.ts fails when this pin
       # and package.json's version differ.
       - name: Write the receipt
         id: taf
-        if: steps.download.outcome == 'success'
+        if: steps.download.outcome == 'success' || steps.none.outputs.placeholder == 'true'
         uses: Wolfe-Jam/faf-taf-git@v2.7.0
         with:
           test-output-file: ${{ runner.temp }}/taf-receipt-input/${{ inputs.test-output-file }}

@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
+import { parseTestOutput } from '../src/parsers';
 
 const root = path.join(__dirname, '..');
 const pkgVersion: string = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8')).version;
@@ -50,16 +51,26 @@ describe('reusable workflow: receipt.yml', () => {
     expect(tafSteps[0].with?.['test-outcome']).toBe('${{ inputs.test-result }}');
   });
 
-  it('no test output: a warning after a failed test job, a failure after one that passed', () => {
+  it('no test output: a failure after a test job that passed, a FAILED receipt with zero counts after one that failed', () => {
     const download = steps.find((s: any) => s.id === 'download') as any;
     expect(download.uses).toMatch(/^actions\/download-artifact@/);
     expect(download['continue-on-error']).toBe(true);
-    expect((tafSteps[0] as any).if).toBe("steps.download.outcome == 'success'");
-    const none = steps.find((s: any) => s.if === "steps.download.outcome != 'success'") as any;
-    // The input reaches the script through env, never interpolated into it.
+    const none = steps.find((s: any) => s.id === 'none') as any;
+    expect(none.if).toBe("steps.download.outcome != 'success'");
+    // Inputs reach the script through env, never interpolated into it.
     expect(none.env.TEST_RESULT).toBe('${{ inputs.test-result }}');
     expect(none.run).not.toContain('${{');
-    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "success" \]; then[\s\S]*::error::[\s\S]*exit 1[\s\S]*fi[\s\S]*::warning::.*cancelled\(\)/);
+    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "success" \]; then[\s\S]*::error::[\s\S]*exit 1/);
+    expect(none.run).toMatch(/if \[ "\$TEST_RESULT" = "failure" \]; then[\s\S]*placeholder=true[\s\S]*exit 0/);
+    // The receipt step runs on a downloaded artifact or on the placeholder.
+    expect((tafSteps[0] as any).if).toBe("steps.download.outcome == 'success' || steps.none.outputs.placeholder == 'true'");
+    expect(tafSteps[0].with?.['test-output-file']).toBe(none.env.OUTPUT_FILE);
+  });
+
+  it('the placeholder counts no tests, so test-outcome: failure records FAILED with zero counts', () => {
+    const none = steps.find((s: any) => s.id === 'none') as any;
+    const text = none.run.match(/echo "(No test output[^"]*)"/)[1];
+    expect(parseTestOutput(text + '\n')).toBeNull();
   });
 
   it('write access is on the receipt job only', () => {

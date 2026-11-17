@@ -81,19 +81,28 @@ jobs:
           name: test-output
           path: ${{ runner.temp }}/taf-receipt-input
 
-      - name: No test output, no receipt
+      - name: No test output
+        id: none
         if: steps.download.outcome != 'success'
         env:
           TEST_RESULT: ${{ needs.car.result }}
+          OUTPUT_FILE: ${{ runner.temp }}/taf-receipt-input/test-output.txt
         run: |
           if [ "$TEST_RESULT" = "success" ]; then
             echo "::error::The test job passed but no test-output artifact was found. No receipt was written."
             exit 1
           fi
-          echo "::warning::The test job did not pass and no artifact named 'test-output' was found, so no receipt was written. Either the tests never ran (the build failed first), or the upload step is missing an if: !cancelled() condition, or the artifact name is wrong."
+          if [ "$TEST_RESULT" = "failure" ]; then
+            mkdir -p "$(dirname "$OUTPUT_FILE")"
+            echo "No test output: the test job failed before its tests reported." > "$OUTPUT_FILE"
+            echo "placeholder=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::The test job failed and no test-output artifact was found: recorded as FAILED with zero counts."
+            exit 0
+          fi
+          echo "::notice::The test job ended '$TEST_RESULT' and uploaded no test output, so no receipt is written for this run."
 
       - name: Write the receipt (this commit's Action)
-        if: steps.download.outcome == 'success'
+        if: steps.download.outcome == 'success' || steps.none.outputs.placeholder == 'true'
         uses: ./
         with:
           test-output-file: ${{ runner.temp }}/taf-receipt-input/test-output.txt
