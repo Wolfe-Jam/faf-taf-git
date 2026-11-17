@@ -114,4 +114,31 @@ describe('fail-on-failed-tests', () => {
     expect(r.output('taf-updated')).toBe('true');
     expect(r.output('receipt-pushed')).toBe('false');
   });
+
+  describe('test-outcome', () => {
+    it('failure with no failed test in the output: a FAILED receipt, and fail-on-failed-tests fails the step', () => {
+      const { run, pushed } = setup(GREEN_RUN);
+      const r = run({ 'test-outcome': 'failure', 'fail-on-failed-tests': 'true' });
+      expect(r.status).toBe(1);
+      expect(r.stdout).toMatch(/::error::The test step failed \(test-outcome: failure\)/);
+      expect(pushed('main')).toEqual(['FAILED']);
+      expect(r.output('result')).toBe('FAILED');
+      expect(r.output('failed')).toBe('0');
+      expect(r.output('receipt-pushed')).toBe('true');
+    });
+
+    it('failure without fail-on-failed-tests: a FAILED receipt, the step stays green', () => {
+      const { run, pushed } = setup(GREEN_RUN);
+      const r = run({ 'test-outcome': 'failure' });
+      expect(r.status).toBe(0);
+      expect(pushed('main')).toEqual(['FAILED']);
+    });
+
+    it.each(['success', 'skipped', ''])('%p leaves the result to the output', (outcome) => {
+      const { run, pushed } = setup(GREEN_RUN);
+      const r = run({ 'test-outcome': outcome, 'fail-on-failed-tests': 'true' });
+      expect(r.status).toBe(0);
+      expect(pushed('main')).toEqual(['PASSED']);
+    });
+  });
 });

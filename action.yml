@@ -37,9 +37,14 @@ inputs:
     default: 'false'
 
   fail-on-failed-tests:
-    description: 'Fail the step when the run had failing tests (failed > 0), after the receipt is written and pushed and the outputs are set. For a single job whose test step has continue-on-error: true: the red run gets its FAILED receipt and the job still fails. Off by default.'
+    description: 'Fail the step when the receipt is FAILED (failing tests, or test-outcome: failure), after the receipt is written and pushed and the outputs are set. For a single job whose test step has continue-on-error: true: the red run gets its FAILED receipt and the job still fails. Off by default.'
     required: false
     default: 'false'
+
+  test-outcome:
+    description: 'The outcome of your test step or job: steps.<id>.outcome, or needs.<job>.result. When it is failure, the receipt is FAILED even if the output counts no failed test (a test file that did not compile, a coverage threshold). Optional: left out, the result comes from the output alone.'
+    required: false
+    default: ''
 
 outputs:
   result:

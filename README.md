@@ -98,6 +98,7 @@ jobs:
     with:
       artifact-name: test-output
       test-output-file: test-output.txt
+      test-result: ${{ needs.test.result }}   # a red test job is recorded as FAILED
 ```
 
 That's it. The first run creates the `taf-receipts` branch for you.
@@ -117,13 +118,14 @@ Give the `receipt` job `permissions: contents: write`: a reusable workflow gets 
 | Input | What it does | Default |
 |---|---|---|
 | `artifact-name` | The artifact your test job uploaded | required |
-| `test-output-file` | The file inside that artifact: the test output or JUnit XML report | required |
+| `test-output-file` | The file inside that artifact: the test output or JUnit XML report. A single uploaded file sits at the artifact's root, so `path: reports/junit.xml` is `junit.xml` here | required |
+| `test-result` | The test job's result, `${{ needs.test.result }}`. When it is `failure` the receipt is `FAILED`, even if the output counts no failed test (a test file that did not compile, a coverage threshold) | none |
 | `target-branch` | The branch receipts are saved to | `taf-receipts` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `runs-on` | The runner for the receipt job | `ubuntu-latest` |
 | `commit-message` | The commit message for each receipt | `chore(taf): update .taf receipt [skip ci]` |
 
-If the tests never ran (the build failed first), there is no test output to download: the receipt job says so in a notice and writes no receipt, without failing.
+If the tests never ran (the build failed first), there is no test output to download: the receipt job says so in a notice and writes no receipt, without failing. If the test job passed and there is still no artifact, the name is wrong: the receipt job fails and says so.
 
 Its outputs are the action's outputs (see [Settings](#settings)), for example `${{ needs.receipt.outputs.result }}`.
 
@@ -146,6 +148,7 @@ jobs:
       - run: npm ci
 
       - name: Run tests
+        id: tests
         # on main: keep going, so a failed run still gets a receipt
         continue-on-error: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         run: |
@@ -158,10 +161,11 @@ jobs:
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts
-          fail-on-failed-tests: 'true'   # receipt first, then the step fails if tests failed
+          test-outcome: ${{ steps.tests.outcome }}   # a failed test step is a FAILED receipt
+          fail-on-failed-tests: 'true'   # receipt first, then the step fails if the run was red
 ```
 
-On `main` the test step keeps going when tests fail, the receipt is saved as `FAILED`, and `fail-on-failed-tests` turns the job red. Everywhere else the test step fails the job itself.
+On `main` the test step keeps going when it fails, the receipt is saved as `FAILED`, and `fail-on-failed-tests` turns the job red. `test-outcome` covers a test step that fails with no failed test in its output (a test file that did not compile, a coverage threshold, a linter in `npm test`). Everywhere else the test step fails the job itself.
 
 If your tests run on several operating systems, print the receipt from the one that runs the most tests.
 
@@ -221,7 +225,8 @@ npx faf-taf-git badge --output badge.svg
 | `commit-message` | The commit message | `chore(taf): update .taf receipt [skip ci]` |
 | `skipped-names` | How many skipped test names each receipt carries. `0` turns it off | `25` |
 | `fail-on-push-error` | Fail the step when the receipt can't be pushed to the current branch (a warning otherwise). A push another run beat is tried again first, up to 5 times. With `target-branch`, a push that fails after 5 tries always fails | `false` |
-| `fail-on-failed-tests` | Fail the step when the run had failing tests, after the receipt is saved and the outputs are set | `false` |
+| `fail-on-failed-tests` | Fail the step when the receipt is `FAILED` (failing tests, or `test-outcome: failure`), after the receipt is saved and the outputs are set | `false` |
+| `test-outcome` | Your test step's outcome (`${{ steps.tests.outcome }}`) or test job's result. `failure` makes the receipt `FAILED` even when the output counts no failed test | none |
 
 **Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 

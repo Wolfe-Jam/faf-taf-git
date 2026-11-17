@@ -83,7 +83,14 @@ jobs:
 
       - name: No test output, no receipt
         if: steps.download.outcome != 'success'
-        run: echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
+        env:
+          TEST_RESULT: ${{ needs.car.result }}
+        run: |
+          if [ "$TEST_RESULT" = "success" ]; then
+            echo "::error::The test job passed but no test-output artifact was found. No receipt was written."
+            exit 1
+          fi
+          echo "::notice::No test output was uploaded, so the tests did not run. No receipt is written for this run."
 
       - name: Write the receipt (this commit's Action)
         if: steps.download.outcome == 'success'
@@ -93,3 +100,4 @@ jobs:
           auto-commit: 'true'
           commit-message: 'chore(taf): update receipt [skip ci]'
           target-branch: taf-receipts
+          test-outcome: ${{ needs.car.result }}

@@ -33,8 +33,13 @@ function pushFailureReason(stderr) {
     const remote = lines.find((l) => /^remote:\s*\S/.test(l) && !/^remote:\s*(Resolving|Counting|Compressing|Total|Enumerating)/.test(l));
     return [why, remote].filter(Boolean).join(' — ').replace(/\.+$/, '');
 }
-/** True when the push was refused because the remote moved on (pulling first fixes it). */
+/**
+ * True when the push was refused because the remote moved on (pulling first
+ * fixes it): behind before the push, or the ref moved during it (`cannot lock
+ * ref` / `failed to update ref`).
+ */
 function pushWasBehind(stderr) {
-    return /\[rejected\].*\((fetch first|non-fast-forward)\)/.test(stderr);
+    return /\[rejected\].*\((fetch first|non-fast-forward)\)/.test(stderr)
+        || /\[remote rejected\].*\((cannot lock ref|failed to update ref)/.test(stderr);
 }
 //# sourceMappingURL=git-env.js.map
