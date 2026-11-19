@@ -18,14 +18,14 @@ const actionOutputs = Object.keys(yaml.parse(fs.readFileSync(path.join(root, 'ac
 
 type Step = { uses?: string; with?: Record<string, string> };
 const steps: Step[] = workflow.jobs.receipt.steps;
-const tafSteps = steps.filter((s) => /^Wolfe-Jam\/faf-taf-git@/.test(s.uses ?? ''));
+const tafSteps = steps.filter((s) => /^Wolfe-Jam\/taf-git@/.test(s.uses ?? ''));
 
 describe('reusable workflow: receipt.yml', () => {
   it('pins the Action to the package.json version', () => {
-    expect(tafSteps.map((s) => s.uses)).toEqual([`Wolfe-Jam/faf-taf-git@v${pkgVersion}`]);
+    expect(tafSteps.map((s) => s.uses)).toEqual([`Wolfe-Jam/taf-git@v${pkgVersion}`]);
     // No other reference to the Action at another ref, in a comment or a step.
-    const refs = workflowText.match(/Wolfe-Jam\/faf-taf-git@[^\s'"]+/g) ?? [];
-    expect(refs).toEqual([`Wolfe-Jam/faf-taf-git@v${pkgVersion}`]);
+    const refs = workflowText.match(/Wolfe-Jam\/taf-git@[^\s'"]+/g) ?? [];
+    expect(refs).toEqual([`Wolfe-Jam/taf-git@v${pkgVersion}`]);
   });
 
   it('is callable, with the documented inputs and defaults', () => {

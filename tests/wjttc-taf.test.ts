@@ -1,5 +1,5 @@
 /**
- * 🏎️ WJTTC Test Suite: faf-taf-git
+ * 🏎️ WJTTC Test Suite: taf-git
  *
  * CAR = Claim, Audit, Receipt
  * This tests the RECEIPT (R) - the .taf file generator
@@ -449,7 +449,7 @@ describe('🏎️ CAR VALIDATION - Complete Receipt System', () => {
     console.log('A = WJTTC  (Audit)   - Score Verification');
     console.log('R = .taf   (Receipt) - Proof Over Time');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅ faf-taf-git is the Receipt Printer');
+    console.log('✅ taf-git is the Receipt Printer');
     console.log('✅ WJTTC Suite: PASSED');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 

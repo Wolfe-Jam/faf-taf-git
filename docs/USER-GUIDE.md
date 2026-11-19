@@ -1,4 +1,4 @@
-# faf-taf-git user guide
+# taf-git user guide
 
 The [README](../README.md) is the guide. It is checked against the code at every release.
 

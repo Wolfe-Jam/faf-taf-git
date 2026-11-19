@@ -6,10 +6,10 @@
 export function botGitEnv(base: NodeJS.ProcessEnv = process.env): { [key: string]: string } {
   const env: { [key: string]: string } = {};
   for (const [k, v] of Object.entries(base)) {if (v !== undefined) {env[k] = v;}}
-  env.GIT_AUTHOR_NAME = 'faf-taf-git[bot]';
-  env.GIT_AUTHOR_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
-  env.GIT_COMMITTER_NAME = 'faf-taf-git[bot]';
-  env.GIT_COMMITTER_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
+  env.GIT_AUTHOR_NAME = 'taf-git[bot]';
+  env.GIT_AUTHOR_EMAIL = 'taf-git[bot]@users.noreply.github.com';
+  env.GIT_COMMITTER_NAME = 'taf-git[bot]';
+  env.GIT_COMMITTER_EMAIL = 'taf-git[bot]@users.noreply.github.com';
   return env;
 }
 

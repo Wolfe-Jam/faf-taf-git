@@ -3,7 +3,7 @@
 
 > **Proof Over Time.** Anyone can get green **once.** TAF proves it **over time** — an append-only Test Receipt on every CI run, git-anchored and tamper-evident. Solid engineering shows in the timeline; everything else gets exposed.
 
-*The canonical `.taf` file format. This repo (`faf-taf-git`) is the receipt printer; this spec pins the file it writes.*
+*The canonical `.taf` file format. This repo (`taf-git`) is the receipt printer; this spec pins the file it writes.*
 
 ---
 
@@ -26,7 +26,7 @@ Three mechanisms make tampering **visible**:
 
 ## The receipt — pinned schema
 
-What `faf-taf-git` writes today. Minimal by design.
+What `taf-git` writes today. Minimal by design.
 
 ```yaml
 format_version: "1.0.0"        # receipt-template version
@@ -74,7 +74,7 @@ test_history:                  # append-only, oldest → newest
 
 `.taf` is a thin git-native **timeline**, not a rival to per-run formats:
 
-- **JUnit XML / TAP** describe **one** run, inside CI. `.taf` is the **portable record across runs**, in the repo. `faf-taf-git` parses Jest/Vitest/JUnit output → appends a receipt.
+- **JUnit XML / TAP** describe **one** run, inside CI. `.taf` is the **portable record across runs**, in the repo. `taf-git` parses Jest/Vitest/JUnit output → appends a receipt.
 - **SLSA / in-toto** attest build provenance to a side store. `.taf` keeps **test** provenance **in the repo** — human-readable, vendor-neutral, offline-readable.
 - Position: `.taf` is the **lowest-friction, in-repo, vendor-neutral proof-over-time** layer. Where a heavier provenance standard is already in play, `.taf` complements it.
 
@@ -95,6 +95,6 @@ FAF is **one tenant** of the printer, not a precondition.
 ## Provenance of this spec
 
 - **v1.1 (2026-11)** — optional `skipped_tests` per receipt (names, hash, newly / no longer skipped), asked for by a developer whose skipped count stayed the same while the tests behind it changed; readers must ignore unknown keys. `format_version` in the file stays `"1.0.0"`: v1.1 only adds an optional field.
-- **v1.0 (2026-06-28)** — single canonical Receipt Format. Pins the `faf-taf-git` emitter schema; leads with Proof Over Time; states the tamper-evidence boundary honestly.
-- Supersedes earlier drafts (2025-10-27) that predated `faf-taf-git` and over-formatted a thin-value artifact.
+- **v1.0 (2026-06-28)** — single canonical Receipt Format. Pins the `faf-taf-git` emitter schema (now `taf-git`); leads with Proof Over Time; states the tamper-evidence boundary honestly.
+- Supersedes earlier drafts (2025-10-27) that predated `faf-taf-git` (now `taf-git`) and over-formatted a thin-value artifact.
 - **License:** MIT.

@@ -12,8 +12,8 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           gh workflow run update-formula.yml \
             -R Wolfe-Jam/homebrew-faf \
-            -f formula=faf-taf-git \
+            -f formula=taf-git \
             -f version=$VERSION \
-            -f npm_package=faf-taf-git
+            -f npm_package=taf-git
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

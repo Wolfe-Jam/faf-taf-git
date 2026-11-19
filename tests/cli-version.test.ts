@@ -1,5 +1,5 @@
 /**
- * `faf-taf-git --version` is a stranger's first command. Before 2.4.1 it fell
+ * `taf-git --version` is a stranger's first command. Before 2.4.1 it fell
  * through to "No test output file specified" and exit 1 (found by /dev-notes
  * on the published 2.4.0).
  */

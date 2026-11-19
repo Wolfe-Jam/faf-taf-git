@@ -1,8 +1,8 @@
 version: "1.0"
 agent:
-  name: faf-taf-git
-  displayName: faf-taf-git
-  id: urn:air:faf.one:agent:faf-taf-git
+  name: taf-git
+  displayName: taf-git
+  id: urn:air:faf.one:agent:taf-git
   version: 2.7.1
   description: "A Test Receipt Printer for git: each CI run appends a receipt with the test counts and result to a .taf file kept in git."
   homepage: https://faf.one
@@ -40,7 +40,7 @@ capabilities:
 endpoints:
   - protocol: github-action
     transport: http
-    location: Wolfe-Jam/faf-taf-git
+    location: Wolfe-Jam/taf-git
 metadata:
   cards:
     domain: faf.one
@@ -50,4 +50,4 @@ metadata:
       - How do I make a test badge from my .taf history?
     packages:
       - registryType: npm
-        identifier: faf-taf-git
+        identifier: taf-git
