@@ -38,7 +38,7 @@ exports.SUPPORTED_PARSERS = PARSERS.map(([name]) => name);
 exports.UNPARSEABLE_OUTPUT = `Could not parse test output. Supported: ${exports.SUPPORTED_PARSERS.join(', ')}.`;
 /** A JUnit report that lists no tests (node --test with no test files): nothing ran, so no receipt. */
 exports.NO_TESTS = 'No tests ran: the JUnit report lists 0 tests, so there is no receipt to print.';
-/** Why the output gave no results: no tests at all, or a format faf-taf-git doesn't read. */
+/** Why the output gave no results: no tests at all, or a format taf-git doesn't read. */
 function noResultsReason(output) {
     const xml = output.replace(/<!--[\s\S]*?-->/g, '');
     const junitShaped = /<testsuites?\b/.test(xml);

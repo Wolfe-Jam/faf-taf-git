@@ -8,6 +8,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Renamed to `taf-git`.** TAF stands on its own: the npm package, the GitHub repo and the action are `taf-git` (`uses: Wolfe-Jam/taf-git@v…`). Installing `taf-git` also gives you a `faf-taf-git` command; GitHub forwards `Wolfe-Jam/faf-taf-git`. The `.taf` format, the receipt fields and the `taf-receipts` branch are unchanged.
+- Receipt commits are authored by `taf-git[bot]`; earlier receipts keep `faf-taf-git[bot]`.
+- The Homebrew formula is `taf-git`.
+
 ## [2.7.1] - 2026-11-17
 
 A test job that fails before its tests report now gets a FAILED receipt, with zero counts.

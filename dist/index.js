@@ -33159,10 +33159,10 @@ function botGitEnv(base = process.env) {
             env[k] = v;
         }
     }
-    env.GIT_AUTHOR_NAME = 'faf-taf-git[bot]';
-    env.GIT_AUTHOR_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
-    env.GIT_COMMITTER_NAME = 'faf-taf-git[bot]';
-    env.GIT_COMMITTER_EMAIL = 'faf-taf-git[bot]@users.noreply.github.com';
+    env.GIT_AUTHOR_NAME = 'taf-git[bot]';
+    env.GIT_AUTHOR_EMAIL = 'taf-git[bot]@users.noreply.github.com';
+    env.GIT_COMMITTER_NAME = 'taf-git[bot]';
+    env.GIT_COMMITTER_EMAIL = 'taf-git[bot]@users.noreply.github.com';
     return env;
 }
 /**
@@ -33196,7 +33196,7 @@ function pushWasBehind(stderr) {
 "use strict";
 
 /**
- * faf-taf-git v2.0.0 - GitHub Actions wrapper
+ * taf-git v2.0.0 - GitHub Actions wrapper
  *
  * Pre-Capture Pattern: Reads test output from file (written by previous step)
  * Handles GitHub Actions-specific inputs/outputs
@@ -33765,7 +33765,7 @@ exports.SUPPORTED_PARSERS = PARSERS.map(([name]) => name);
 exports.UNPARSEABLE_OUTPUT = `Could not parse test output. Supported: ${exports.SUPPORTED_PARSERS.join(', ')}.`;
 /** A JUnit report that lists no tests (node --test with no test files): nothing ran, so no receipt. */
 exports.NO_TESTS = 'No tests ran: the JUnit report lists 0 tests, so there is no receipt to print.';
-/** Why the output gave no results: no tests at all, or a format faf-taf-git doesn't read. */
+/** Why the output gave no results: no tests at all, or a format taf-git doesn't read. */
 function noResultsReason(output) {
     const xml = output.replace(/<!--[\s\S]*?-->/g, '');
     const junitShaped = /<testsuites?\b/.test(xml);

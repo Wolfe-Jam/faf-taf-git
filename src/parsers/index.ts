@@ -40,7 +40,7 @@ export const UNPARSEABLE_OUTPUT = `Could not parse test output. Supported: ${SUP
 /** A JUnit report that lists no tests (node --test with no test files): nothing ran, so no receipt. */
 export const NO_TESTS = 'No tests ran: the JUnit report lists 0 tests, so there is no receipt to print.';
 
-/** Why the output gave no results: no tests at all, or a format faf-taf-git doesn't read. */
+/** Why the output gave no results: no tests at all, or a format taf-git doesn't read. */
 export function noResultsReason(output: string): string {
   const xml = output.replace(/<!--[\s\S]*?-->/g, '');
   const junitShaped = /<testsuites?\b/.test(xml);
