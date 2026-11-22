@@ -76,7 +76,7 @@ jobs:
       - name: Download the test output
         id: download
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: test-output
           path: ${{ runner.temp }}/taf-receipt-input
