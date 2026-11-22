@@ -26,7 +26,7 @@ export declare function updateTafFile(tafPath: string, testResults: TestResults,
  * What fired the run: GitHub Actions, another CI, or a local run
  */
 export declare function runTrigger(env?: NodeJS.ProcessEnv): string;
-/**
- * The error when there is no .taf to append to, with the command that makes one
- */
-export declare const NO_TAF_FILE = "No .taf file found. Create one: echo 'test_history: []' > .taf";
+/** The .taf a project starts with when it has none: no receipts yet. */
+export declare function newTafText(projectName: string): string;
+/** Start a .taf at `tafPath` if there is none. Returns true when it wrote one. */
+export declare function ensureTaf(tafPath: string, projectName: string): boolean;

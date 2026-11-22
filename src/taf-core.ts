@@ -249,10 +249,17 @@ export function runTrigger(env: NodeJS.ProcessEnv = process.env): string {
   return 'local';
 }
 
-/**
- * The error when there is no .taf to append to, with the command that makes one
- */
-export const NO_TAF_FILE = "No .taf file found. Create one: echo 'test_history: []' > .taf";
+/** The .taf a project starts with when it has none: no receipts yet. */
+export function newTafText(projectName: string): string {
+  return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
+}
+
+/** Start a .taf at `tafPath` if there is none. Returns true when it wrote one. */
+export function ensureTaf(tafPath: string, projectName: string): boolean {
+  if (fs.existsSync(tafPath)) return false;
+  fs.writeFileSync(tafPath, newTafText(projectName));
+  return true;
+}
 
 /**
  * Create a new TAF file structure

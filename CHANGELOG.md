@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v3.0.0 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v3.0.1 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.0.1] - 2026-11-22
+
+A first run with no `.taf` now starts one instead of stopping.
+
+### Fixed
+- **The command-line tool starts `.taf` on its first run.** `npx taf-git --file test-output.txt` in a project with no `.taf` stopped with "No .taf file found" and printed the command to make one; the README's steps didn't mention it. It now writes a new `.taf` (no receipts yet) and records the run. The action on the current branch (no `target-branch`) does the same; on `taf-receipts` it already did. An existing `.taf` is never written over.
 
 ## [3.0.0] - 2026-11-22 — Standalone Edition
 

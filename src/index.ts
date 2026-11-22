@@ -11,15 +11,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
-import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
+import { ensureTaf, lastUpdate, newTafText, updateTafFile } from './taf-core';
 import { parseSkippedNamesCap } from './skipped-names';
 import { botGitEnv, pushFailureReason, pushWasBehind } from './git-env';
 import { pushReceipt } from './receipt-push';
-
-/** The .taf a new receipts branch starts with when the source branch has none. */
-function minimalTaf(projectName: string): string {
-  return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
-}
 
 /** git in `cwd` with the bot identity; resolves to trimmed stdout, throws with git's stderr on a non-zero exit. */
 async function gitOut(cwd: string, args: string[], extraEnv: { [key: string]: string } = {}): Promise<string> {
@@ -63,7 +58,7 @@ async function addReceiptsWorktree(base: string, repoRoot: string, rel: string, 
     start = remoteRef;
     core.info(`Receipts branch ${targetBranch} exists: adding to it`);
   } else {
-    const tafText = tafSeed ?? minimalTaf(path.basename(path.join(repoRoot, rel)));
+    const tafText = tafSeed ?? newTafText(path.basename(path.join(repoRoot, rel)));
     const blobFile = path.join(base, 'seed.taf');
     fs.writeFileSync(blobFile, tafText, 'utf-8');
     const blob = await gitOut(repoRoot, ['hash-object', '-w', '--', blobFile]);
@@ -300,10 +295,9 @@ async function run(): Promise<void> {
     try {
       const tafPath = path.join(workCwd, '.taf');
 
-      // Check if .taf file exists (on current or target branch)
-      if (!fs.existsSync(tafPath)) {
-        core.setFailed(NO_TAF_FILE);
-        return;
+      // No .taf yet (current branch, first run): start one, as the receipts branch does.
+      if (ensureTaf(tafPath, path.basename(workCwd))) {
+        core.info('Started a new .taf (first receipt)');
       }
 
       // Update .taf file

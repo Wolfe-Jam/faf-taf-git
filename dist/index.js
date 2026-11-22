@@ -33245,10 +33245,6 @@ const taf_core_1 = __nccwpck_require__(390);
 const skipped_names_1 = __nccwpck_require__(5830);
 const git_env_1 = __nccwpck_require__(5677);
 const receipt_push_1 = __nccwpck_require__(5844);
-/** The .taf a new receipts branch starts with when the source branch has none. */
-function minimalTaf(projectName) {
-    return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
-}
 /** git in `cwd` with the bot identity; resolves to trimmed stdout, throws with git's stderr on a non-zero exit. */
 async function gitOut(cwd, args, extraEnv = {}) {
     const r = await exec.getExecOutput('git', args, { cwd, env: { ...(0, git_env_1.botGitEnv)(), ...extraEnv }, silent: true, ignoreReturnCode: true });
@@ -33286,7 +33282,7 @@ async function addReceiptsWorktree(base, repoRoot, rel, targetBranch, tafSeed) {
         core.info(`Receipts branch ${targetBranch} exists: adding to it`);
     }
     else {
-        const tafText = tafSeed ?? minimalTaf(path.basename(path.join(repoRoot, rel)));
+        const tafText = tafSeed ?? (0, taf_core_1.newTafText)(path.basename(path.join(repoRoot, rel)));
         const blobFile = path.join(base, 'seed.taf');
         fs.writeFileSync(blobFile, tafText, 'utf-8');
         const blob = await gitOut(repoRoot, ['hash-object', '-w', '--', blobFile]);
@@ -33527,10 +33523,9 @@ async function run() {
         }
         try {
             const tafPath = path.join(workCwd, '.taf');
-            // Check if .taf file exists (on current or target branch)
-            if (!fs.existsSync(tafPath)) {
-                core.setFailed(taf_core_1.NO_TAF_FILE);
-                return;
+            // No .taf yet (current branch, first run): start one, as the receipts branch does.
+            if ((0, taf_core_1.ensureTaf)(tafPath, path.basename(workCwd))) {
+                core.info('Started a new .taf (first receipt)');
             }
             // Update .taf file
             const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap });
@@ -34544,9 +34539,11 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NO_TAF_FILE = exports.lastUpdate = void 0;
+exports.lastUpdate = void 0;
 exports.updateTafFile = updateTafFile;
 exports.runTrigger = runTrigger;
+exports.newTafText = newTafText;
+exports.ensureTaf = ensureTaf;
 const fs = __importStar(__nccwpck_require__(9896));
 const os = __importStar(__nccwpck_require__(857));
 const path = __importStar(__nccwpck_require__(6928));
@@ -34765,10 +34762,17 @@ function runTrigger(env = process.env) {
         return 'ci';
     return 'local';
 }
-/**
- * The error when there is no .taf to append to, with the command that makes one
- */
-exports.NO_TAF_FILE = "No .taf file found. Create one: echo 'test_history: []' > .taf";
+/** The .taf a project starts with when it has none: no receipts yet. */
+function newTafText(projectName) {
+    return `format_version: 1.0.0\nproject: ${projectName}\ncreated: ${new Date().toISOString()}\ntest_history: []\n`;
+}
+/** Start a .taf at `tafPath` if there is none. Returns true when it wrote one. */
+function ensureTaf(tafPath, projectName) {
+    if (fs.existsSync(tafPath))
+        return false;
+    fs.writeFileSync(tafPath, newTafText(projectName));
+    return true;
+}
 /**
  * Create a new TAF file structure
  */
