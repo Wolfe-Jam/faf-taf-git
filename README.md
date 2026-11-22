@@ -1,19 +1,21 @@
-<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: taf-git | TypeScript | cli | A Test Receipt Printer for git -->
 <!-- faf: doc=readme | canonical=project.faf | score=100 | family=TAF -->
 
-# faf-taf-git
+# taf-git
 
-[![TAF](./badge.svg)](https://github.com/Wolfe-Jam/faf-taf-git)
+[![TAF](./badge.svg)](https://github.com/Wolfe-Jam/taf-git)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-enabled-00D4D4)](https://github.com/anthropics/claude-code-action)
-[![Business card · Get yours →](https://wolfe-jam.github.io/agent-business-card/badge.svg)](https://wolfe-jam.github.io/agent-business-card/?repo=Wolfe-Jam/faf-taf-git)
+[![Business card · Get yours →](https://wolfe-jam.github.io/agent-business-card/badge.svg)](https://wolfe-jam.github.io/agent-business-card/?repo=Wolfe-Jam/taf-git)
 
 **A receipt printer for your tests.**
 
-Every time your tests run in CI, faf-taf-git writes a small receipt: when they ran, how many passed, failed and were skipped. The receipts are saved in your repo, one after another, on their own branch. Over time they show whether your tests really kept passing.
+Every time your tests run in CI, taf-git writes a small receipt: when they ran, how many passed, failed and were skipped. The receipts are saved in your repo, one after another, on their own branch. Over time they show whether your tests really kept passing.
 
 Anyone can get green once. Receipts show it over time.
 
-`npm: faf-taf-git` · `GitHub Action: Wolfe-Jam/faf-taf-git` · MIT, free
+`npm: taf-git` · `GitHub Action: Wolfe-Jam/taf-git` · MIT, free
+
+Formerly `faf-taf-git`. Installing `taf-git` also gives you a `faf-taf-git` command, so existing scripts keep working. GitHub forwards `uses: Wolfe-Jam/faf-taf-git@…` to this repo, but not the reusable workflow: change `faf-taf-git/.github/workflows/receipt.yml` to `taf-git/.github/workflows/receipt.yml@v3.0.0`.
 
 ## Why
 
@@ -94,7 +96,7 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write              # lets this job, and only this job, save receipts
-    uses: Wolfe-Jam/faf-taf-git/.github/workflows/receipt.yml@v2.7.1
+    uses: Wolfe-Jam/taf-git/.github/workflows/receipt.yml@v3.0.0
     with:
       artifact-name: test-output
       test-output-file: test-output.txt
@@ -157,7 +159,7 @@ jobs:
 
       - name: Print the receipt
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: Wolfe-Jam/faf-taf-git@v2.7.1
+        uses: Wolfe-Jam/taf-git@v3.0.0
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts
@@ -195,7 +197,7 @@ The command-line tool does the same job anywhere Node.js runs (GitLab, Jenkins, 
 
 ```bash
 npm test 2>&1 | tee test-output.txt
-npx faf-taf-git --file test-output.txt --commit
+npx taf-git --file test-output.txt --commit
 ```
 
 `--commit` commits the updated `.taf` for you. Leave it off to just update the file.
@@ -210,7 +212,7 @@ git show origin/taf-receipts:.taf
 Make a badge for your README:
 
 ```bash
-npx faf-taf-git badge --output badge.svg
+npx taf-git badge --output badge.svg
 ```
 
 ## Settings
@@ -232,7 +234,7 @@ npx faf-taf-git badge --output badge.svg
 
 **Action outputs:** `result`, `passed`, `failed`, `skipped`, `newly-skipped`, `total`, `taf-updated`, `receipt-pushed`. For example, `${{ steps.taf.outputs.passed }}`.
 
-**Command-line options:** `--file`, `--commit`, `--message`, `--cwd`, `--verbose` (`--name value` or `--name=value`). With `--commit`, a push that fails exits 1. Run `npx faf-taf-git --help` for the full list.
+**Command-line options:** `--file`, `--commit`, `--message`, `--cwd`, `--verbose` (`--name value` or `--name=value`). With `--commit`, a push that fails exits 1. Run `npx taf-git --help` for the full list.
 
 ## How hard is it to fake?
 
@@ -242,7 +244,7 @@ A receipt records what one CI run's tests did, and when. It does not name the co
 
 ## With FAF (optional)
 
-faf-taf-git works on any git repo; you don't need anything else. If your project also uses [FAF](https://faf.one) (a `project.faf` file describing the project for AI), the two fit together: `project.faf` says what the project is, and `.taf` shows its tests kept passing.
+taf-git works on any git repo; you don't need anything else. If your project also uses [FAF](https://faf.one) (a `project.faf` file describing the project for AI), the two fit together: `project.faf` says what the project is, and `.taf` shows its tests kept passing.
 
 ## Upgrading from v1
 
@@ -262,4 +264,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 MIT. Free forever.
 
-If faf-taf-git is useful to you, a star helps other people find it.
+If taf-git is useful to you, a star helps other people find it.

@@ -1,5 +1,5 @@
 /**
- * Badge Generator for faf-taf-git
+ * Badge Generator for taf-git
  *
  * Generates shields.io-style SVG badges from .taf test history.
  * Self-contained SVG with Verdana font, no external dependencies.

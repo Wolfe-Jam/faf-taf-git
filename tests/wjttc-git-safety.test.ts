@@ -63,9 +63,9 @@ describe('🏁 WJTTC — receipt commit git safety', () => {
 
   test('B6: the bot identity is passed in the environment, not written to config', () => {
     const env = botGitEnv({ PATH: '/usr/bin', HOME: '/home/x', UNSET: undefined });
-    expect(env.GIT_AUTHOR_NAME).toBe('faf-taf-git[bot]');
-    expect(env.GIT_COMMITTER_NAME).toBe('faf-taf-git[bot]');
-    expect(env.GIT_AUTHOR_EMAIL).toBe('faf-taf-git[bot]@users.noreply.github.com');
+    expect(env.GIT_AUTHOR_NAME).toBe('taf-git[bot]');
+    expect(env.GIT_COMMITTER_NAME).toBe('taf-git[bot]');
+    expect(env.GIT_AUTHOR_EMAIL).toBe('taf-git[bot]@users.noreply.github.com');
     expect(env.PATH).toBe('/usr/bin');
     expect('UNSET' in env).toBe(false);
   });
@@ -84,7 +84,7 @@ describe('🏁 WJTTC — receipt commit git safety', () => {
     const env = { ...botGitEnv(), GIT_CONFIG_GLOBAL: globalCfg };
     execFileSync('git', ['add', '--', '.taf'], { cwd: d, env });
     execFileSync('git', ['commit', '-q', '-m', 'r', '--', '.taf'], { cwd: d, env });
-    expect(git(d, 'log', '-1', '--format=%an <%ae>').trim()).toBe('faf-taf-git[bot] <faf-taf-git[bot]@users.noreply.github.com>');
+    expect(git(d, 'log', '-1', '--format=%an <%ae>').trim()).toBe('taf-git[bot] <taf-git[bot]@users.noreply.github.com>');
     expect(fs.readFileSync(globalCfg, 'utf-8')).toContain('name = Developer');
     expect(git(d, 'config', '--local', '--get', 'user.name').trim()).toBe('dev');
   });

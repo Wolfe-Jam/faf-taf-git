@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v2.7.1 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v3.0.0 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.0.0] - 2026-11-22 — Standalone Edition
+
+faf-taf-git is now taf-git: the same receipts, under a name of its own.
+
+**Using `receipt.yml`? Change your `uses:` line** to `Wolfe-Jam/taf-git/.github/workflows/receipt.yml@v3.0.0`. GitHub forwards the old repo name for actions, git and web links, but not for reusable workflows: under the old name the workflow fails before any job starts. Plain action lines (`uses: Wolfe-Jam/faf-taf-git@v2.7.1`) keep working.
+
+### Changed
+- **Renamed to `taf-git`.** TAF stands on its own: the npm package, the GitHub repo and the action are `taf-git` (`uses: Wolfe-Jam/taf-git@v…`). Installing `taf-git` also gives you a `faf-taf-git` command; GitHub forwards `Wolfe-Jam/faf-taf-git`. The `.taf` format, the receipt fields and the `taf-receipts` branch are unchanged.
+- Receipt commits are authored by `taf-git[bot]`; earlier receipts keep `faf-taf-git[bot]`.
+- The Homebrew formula is `taf-git`.
 
 ## [2.7.1] - 2026-11-17
 

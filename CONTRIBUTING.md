@@ -1,4 +1,4 @@
-<!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
+<!-- faf: taf-git | TypeScript | cli | A Test Receipt Printer for git -->
 <!-- faf: doc=contributing | canonical=project.faf | family=TAF -->
 
 # Contributing to FAF TAF Action
@@ -264,7 +264,7 @@ Releases follow semantic versioning:
 
 Release checklist:
 1. Update version in package.json
-   - Set the Action pin in `.github/workflows/receipt.yml` to the same version (`uses: Wolfe-Jam/faf-taf-git@v<version>`). `npm test` fails when the two differ (`tests/receipt-workflow.test.ts`).
+   - Set the Action pin in `.github/workflows/receipt.yml` to the same version (`uses: Wolfe-Jam/taf-git@v<version>`). `npm test` fails when the two differ (`tests/receipt-workflow.test.ts`).
 2. Update RELEASE-NOTES.md
 3. Run full test suite
 4. Build and verify dist/

@@ -61,7 +61,7 @@ describe('built Action: git safety', () => {
     const r = runAction(repo, env, { 'test-output-file': out });
     expect(r.status).toBe(0);
     expect(git(repo, ['log', '-1', '--format=%an <%ae>'], env).trim()).toBe(
-      'faf-taf-git[bot] <faf-taf-git[bot]@users.noreply.github.com>',
+      'taf-git[bot] <taf-git[bot]@users.noreply.github.com>',
     );
     expect(fs.readFileSync(globalCfg, 'utf-8')).toBe(before);
     const local = spawnSync('git', ['config', '--local', '--get', 'user.name'], { cwd: repo, env, encoding: 'utf-8' });
@@ -86,7 +86,7 @@ describe('built Action: git safety', () => {
     git(repo, ['fetch', '-q', 'origin', 'taf-receipts'], env);
     const files = git(repo, ['ls-tree', '-r', '--name-only', 'FETCH_HEAD'], env).trim().split('\n');
     expect(files).toEqual(['pkg/.taf']);
-    expect(git(repo, ['log', '-1', '--format=%an', 'FETCH_HEAD'], env).trim()).toBe('faf-taf-git[bot]');
+    expect(git(repo, ['log', '-1', '--format=%an', 'FETCH_HEAD'], env).trim()).toBe('taf-git[bot]');
     expect(fs.readFileSync(globalCfg, 'utf-8')).toBe(before);
   });
 });

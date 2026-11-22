@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * faf-taf-git - The Git-Native Receipt Printer
+ * taf-git - The Git-Native Receipt Printer
  *
  * v2.x CLI: reads test output from file (pre-capture pattern)
  * Platform-agnostic - works in ANY CI/CD environment or locally
