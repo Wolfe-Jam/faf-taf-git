@@ -11,7 +11,7 @@ import { pushFailureReason, pushWasBehind } from './git-env';
 import * as fs from 'fs';
 import * as path from 'path';
 import { noResultsReason, parseTestOutput } from './parsers';
-import { lastUpdate, NO_TAF_FILE, updateTafFile } from './taf-core';
+import { ensureTaf, lastUpdate, updateTafFile } from './taf-core';
 import { parseSkippedNamesCap } from './skipped-names';
 import { generateBadge } from './badge';
 
@@ -93,20 +93,10 @@ export async function runTafGit(options: CLIOptions = {}): Promise<CLIResult> {
       logger(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
     }
 
-    // Check if .taf file exists
+    // No .taf yet (first run): start one.
     const tafPath = path.join(cwd, '.taf');
-    if (!fs.existsSync(tafPath)) {
-      return {
-        success: false,
-        testResults: {
-          total: testResults.total,
-          passed: testResults.passed,
-          failed: testResults.failed,
-          result: testResults.result,
-        },
-        tafUpdated: false,
-        error: NO_TAF_FILE,
-      };
+    if (ensureTaf(tafPath, path.basename(path.resolve(cwd)))) {
+      logger('Started a new .taf (first receipt)');
     }
 
     // Update .taf file

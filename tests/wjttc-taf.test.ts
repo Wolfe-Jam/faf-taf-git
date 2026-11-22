@@ -327,14 +327,10 @@ describe('🔧 TIER 2: ENGINE - Receipt Completeness', () => {
       expect(content2.length).toBeGreaterThan(content1.length);
     });
 
-    test('the .taf the error tells you to make takes a receipt', () => {
-      const { NO_TAF_FILE } = require('../dist/taf-core');
-      expect(NO_TAF_FILE).not.toContain('faf taf init');
-      const made = NO_TAF_FILE.match(/echo '(.+)' > \.taf/);
-      expect(made).not.toBeNull();
-
+    test('a missing .taf is started, not an error (3.0.1)', () => {
+      const { ensureTaf } = require('../dist/taf-core');
       const tafPath = path.join(tempDir, '.taf');
-      fs.writeFileSync(tafPath, `${made[1]}\n`);
+      expect(ensureTaf(tafPath, 'demo')).toBe(true);
       expect(updateTafFile(tafPath, { total: 1, passed: 1, failed: 0, result: 'PASSED' })).toBe(true);
       expect(fs.readFileSync(tafPath, 'utf8')).toContain('passed: 1');
     });

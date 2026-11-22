@@ -92,20 +92,10 @@ async function runTafGit(options = {}) {
         if (verbose) {
             logger(`Parsed results: ${testResults.passed}/${testResults.total} tests passing`);
         }
-        // Check if .taf file exists
+        // No .taf yet (first run): start one.
         const tafPath = path.join(cwd, '.taf');
-        if (!fs.existsSync(tafPath)) {
-            return {
-                success: false,
-                testResults: {
-                    total: testResults.total,
-                    passed: testResults.passed,
-                    failed: testResults.failed,
-                    result: testResults.result,
-                },
-                tafUpdated: false,
-                error: taf_core_1.NO_TAF_FILE,
-            };
+        if ((0, taf_core_1.ensureTaf)(tafPath, path.basename(path.resolve(cwd)))) {
+            logger('Started a new .taf (first receipt)');
         }
         // Update .taf file
         const updated = await (0, taf_core_1.updateTafFile)(tafPath, testResults, { skippedNamesCap: options.skippedNamesCap });
