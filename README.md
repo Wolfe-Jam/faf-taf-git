@@ -15,7 +15,7 @@ Anyone can get green once. Receipts show it over time.
 
 `npm: taf-git` · `GitHub Action: Wolfe-Jam/taf-git` · MIT, free
 
-Formerly `faf-taf-git`. Installing `taf-git` also gives you a `faf-taf-git` command, so existing scripts keep working, and GitHub forwards `Wolfe-Jam/faf-taf-git` to this repo.
+Formerly `faf-taf-git`. Installing `taf-git` also gives you a `faf-taf-git` command, so existing scripts keep working. GitHub forwards `uses: Wolfe-Jam/faf-taf-git@…` to this repo, but not the reusable workflow: change `faf-taf-git/.github/workflows/receipt.yml` to `taf-git/.github/workflows/receipt.yml@v3.0.0`.
 
 ## Why
 
