@@ -1,0 +1,66 @@
+# Release: a v* tag publishes taf-git to npm with OIDC Trusted Publishing
+# (no npm token, no 2FA prompt; npm adds provenance), then updates the
+# Homebrew formula once the version is on the registry.
+#
+# Setup (once): npmjs.com → taf-git → Settings → Trusted Publisher →
+# GitHub Actions: Wolfe-Jam / taf-git / release.yml / environment `release`.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # OIDC
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install
+        run: npm ci
+      - name: Tag matches package.json
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          [ "$v" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME but package.json says $v"; exit 1; }
+      # Users run the committed dist/ at the tag, so it must match the source.
+      - name: dist/ matches the source
+        run: |
+          npm run build
+          git diff --exit-code -- dist || { echo "::error::dist/ is stale: rebuild and commit it"; exit 1; }
+      - name: Test
+        run: npm test
+      - name: npm publish (OIDC Trusted Publishing, no NODE_AUTH_TOKEN)
+        run: npm publish --access public
+
+  homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      # The formula reads npm's tarball URL, so wait until the registry has it.
+      - name: Wait for the version on npm
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            curl -sf "https://registry.npmjs.org/taf-git/$VERSION" >/dev/null && exit 0
+            sleep 10
+          done
+          echo "::error::taf-git@$VERSION not on npm after 5 minutes"; exit 1
+      - name: Update Homebrew formula
+        run: |
+          gh workflow run update-formula.yml \
+            -R Wolfe-Jam/homebrew-faf \
+            -f formula=taf-git \
+            -f version="${GITHUB_REF_NAME#v}" \
+            -f npm_package=taf-git
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
