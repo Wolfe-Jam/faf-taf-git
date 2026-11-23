@@ -9,7 +9,11 @@
 import { TestResults } from './jest';
 import { decodeXmlEntities } from '../skipped-names';
 
-const SUITE_TAG = /<(\/?)testsuite\b([^>]*?)(\/?)>/g;
+// Attribute lists, stepping over quoted values: XML allows a bare `>` inside one
+// (node:test writes test names like "a > b" that way), so `[^>]*` would end the tag early.
+const ATTRS = `(?:[^>"']|"[^"]*"|'[^']*')*?`;
+const SUITE_TAG = new RegExp(`<(\\/?)testsuite\\b(${ATTRS})(\\/?)>`, 'g');
+const TESTCASE = () => new RegExp(`<testcase\\b(${ATTRS})(?:\\/>|>([\\s\\S]*?)<\\/testcase>)`, 'g');
 
 /** Read one numeric attribute; undefined when the attribute is absent. */
 function attr(attrs: string, name: string): number | undefined {
@@ -37,11 +41,11 @@ function countsFromAttrs(attrs: string): Counts | null {
 /** Fallback when suites carry no counts: walk the <testcase> elements themselves. */
 function countsFromTestcases(xml: string): Counts {
   const counts: Counts = { tests: 0, failed: 0, skipped: 0 };
-  const testcase = /<testcase\b[^>]*?(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+  const testcase = TESTCASE();
   let match: RegExpExecArray | null;
   while ((match = testcase.exec(xml)) !== null) {
     counts.tests++;
-    const body = match[1] ?? '';
+    const body = match[2] ?? '';
     if (/<(failure|error)\b/.test(body)) counts.failed++;
     else if (/<skipped\b/.test(body)) counts.skipped++;
   }
@@ -60,7 +64,7 @@ function textAttr(attrs: string, name: string): string | undefined {
  */
 function skippedNamesFromTestcases(xml: string): string[] {
   const names: string[] = [];
-  const testcase = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+  const testcase = TESTCASE();
   let match: RegExpExecArray | null;
   while ((match = testcase.exec(xml)) !== null) {
     const body = match[2] ?? '';
@@ -93,7 +97,7 @@ export function parseJunitOutput(output: string): TestResults | null {
 
   let counts: Counts | null = null;
 
-  const root = xml.match(/<testsuites\b([^>]*)>/);
+  const root = xml.match(new RegExp(`<testsuites\\b(${ATTRS})\\/?>`));
   if (root) counts = countsFromAttrs(root[1]);
 
   if (!counts) {

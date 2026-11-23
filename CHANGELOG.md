@@ -1,5 +1,5 @@
 <!-- faf: faf-taf-git | TypeScript | cli | A Test Receipt Printer for git -->
-<!-- faf: doc=changelog | latest=v3.0.1 | canonical=project.faf | family=TAF -->
+<!-- faf: doc=changelog | latest=v3.0.2 | canonical=project.faf | family=TAF -->
 
 # Changelog
 
@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.0.2] - 2026-11-22
+
+JUnit receipts count every test, including tests with a `>` in their name.
+
+### Fixed
+- **A `>` inside a JUnit attribute no longer drops the test.** XML allows a bare `>` in an attribute value, and node:test's JUnit reporter writes names such as `code span > bold` that way. The parser ended the tag at that `>`, so mcp-context-card's first receipt said 254 when 259 tests ran. With a failing test in the report, the cut could also count the failure against the wrong test. Suite and root tags had the same flaw.
 
 ## [3.0.1] - 2026-11-22
 

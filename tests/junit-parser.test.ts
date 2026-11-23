@@ -201,3 +201,54 @@ describe('a report with no tests', () => {
     expect(noResultsReason('hello world')).toBe(UNPARSEABLE_OUTPUT);
   });
 });
+
+/**
+ * XML allows a bare `>` inside an attribute value, and node:test's JUnit reporter
+ * writes test names that way. Found on mcp-context-card (11-22): 259 tests ran,
+ * the receipt said 254, because the parser ended each such tag at that `>`.
+ */
+describe('a `>` inside an attribute value', () => {
+  // node:test's shape: a counted suite, then top-level tests beside it under the root.
+  const report = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="Tier 1: a > b" tests="2" failures="0" skipped="0">
+		<testcase name="inside the suite" classname="test"/>
+		<testcase name="nested: x > y" classname="test"/>
+	</testsuite>
+	<testcase name="renderInline: code span > bold > italic" time="0.0004" classname="test" file="/w/test/md.test.ts"/>
+	<testcase name="served at &lt;origin>/mcp/server-card" time="0.005" classname="test"/>
+	<testcase name="plain one" classname="test"/>
+	<testcase name="fails: a > b" classname="test">
+		<failure type="testCodeFailure" message="expected 1 > 2">AssertionError</failure>
+	</testcase>
+	<testcase name="skipped: c > d" classname="test">
+		<skipped type="skipped" message="later"/>
+	</testcase>
+	<testcase name="last plain one" classname="test"/>
+</testsuites>`;
+
+  test('every testcase is counted, failures and skips in the right place', () => {
+    expect(counts(parseJunitOutput(report))).toEqual({
+      total: 8,
+      passed: 6,
+      failed: 1,
+      skipped: 1,
+      skippedNames: undefined,
+      result: 'FAILED',
+    });
+  });
+
+  test('the skipped name keeps its `>`', () => {
+    expect(parseJunitOutput(report)?.skippedNames).toEqual(['test > skipped: c > d']);
+  });
+
+  test('a suite tag with `>` in its name still carries its counts', () => {
+    const suiteOnly = `<testsuites><testsuite name="a > b" tests="3" failures="1" skipped="0"></testsuite></testsuites>`;
+    expect(counts(parseJunitOutput(suiteOnly))).toMatchObject({ total: 3, failed: 1, passed: 2 });
+  });
+
+  test('a root with `>` in its name still carries the totals', () => {
+    const root = `<testsuites name="run > all" tests="4" failures="0"><testsuite name="s"/></testsuites>`;
+    expect(counts(parseJunitOutput(root))).toMatchObject({ total: 4, passed: 4, failed: 0 });
+  });
+});

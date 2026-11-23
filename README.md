@@ -15,7 +15,7 @@ Anyone can get green once. Receipts show it over time.
 
 `npm: taf-git` · `GitHub Action: Wolfe-Jam/taf-git` · MIT, free
 
-Formerly `faf-taf-git`. Installing `taf-git` also gives you a `faf-taf-git` command, so existing scripts keep working. GitHub forwards `uses: Wolfe-Jam/faf-taf-git@…` to this repo, but not the reusable workflow: change `faf-taf-git/.github/workflows/receipt.yml` to `taf-git/.github/workflows/receipt.yml@v3.0.1`.
+Formerly `faf-taf-git`. Installing `taf-git` also gives you a `faf-taf-git` command, so existing scripts keep working. GitHub forwards `uses: Wolfe-Jam/faf-taf-git@…` to this repo, but not the reusable workflow: change `faf-taf-git/.github/workflows/receipt.yml` to `taf-git/.github/workflows/receipt.yml@v3.0.2`.
 
 ## Why
 
@@ -96,7 +96,7 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write              # lets this job, and only this job, save receipts
-    uses: Wolfe-Jam/taf-git/.github/workflows/receipt.yml@v3.0.1
+    uses: Wolfe-Jam/taf-git/.github/workflows/receipt.yml@v3.0.2
     with:
       artifact-name: test-output
       test-output-file: test-output.txt
@@ -159,7 +159,7 @@ jobs:
 
       - name: Print the receipt
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: Wolfe-Jam/taf-git@v3.0.1
+        uses: Wolfe-Jam/taf-git@v3.0.2
         with:
           test-output-file: test-output.txt
           target-branch: taf-receipts
